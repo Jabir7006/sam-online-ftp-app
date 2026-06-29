@@ -21,7 +21,6 @@ export default function RootLayout() {
           },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: '#0D0D0D' },
-          animation: 'slide_from_right',
         }}
       />
     </View>
