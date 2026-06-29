@@ -3,7 +3,7 @@
     "name": "DHAKA-FLIX",
     "slug": "sam-online-app",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "dhakaflix",
     "userInterfaceStyle": "dark",
@@ -26,6 +26,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-screen-orientation",
       "expo-video"
     ],
     "experiments": {}
