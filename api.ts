@@ -4,7 +4,7 @@ import type { H5aiItem, H5aiApiResponse } from './types';
  * Extracts the server IP dynamically from the path.
  * e.g., "/DHAKA-FLIX-14/..." -> "http://172.16.50.14"
  */
-function getBaseUrlForPath(path: string): string {
+export function getBaseUrlForPath(path: string): string {
   const match = path.match(/\/DHAKA-FLIX-(\d+)\//i);
   if (match && match[1]) {
     return `http://172.16.50.${match[1]}`;

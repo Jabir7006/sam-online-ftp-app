@@ -131,8 +131,17 @@ export default function FolderViewerScreen() {
   // ── Navigate into a subfolder ──
   const handleItemPress = useCallback((item: H5aiItem) => {
     if (item.size !== null) {
-      // It's a file — show an alert for now (can be expanded to a media player)
-      Alert.alert('File Selected', item.href, [{ text: 'OK' }]);
+      // It's a file — extract the filename to pass to the player
+      const fileName = item.href.split('/').filter(Boolean).pop() || 'Unknown Video';
+      const decodedName = decodeURIComponent(fileName);
+      
+      // Delay navigation slightly to prevent JS thread locking
+      requestAnimationFrame(() => {
+        router.push({
+          pathname: '/player',
+          params: { rawHref: item.href, title: decodedName }
+        });
+      });
       return;
     }
     // It's a folder
