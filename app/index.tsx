@@ -1,5 +1,6 @@
 import React, { useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, Image, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, Pressable, TouchableOpacity } from "react-native";
+import { Image } from "expo-image";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -88,7 +89,13 @@ export default function HomeScreen() {
         onPress={() => handlePress(item.href)}
       >
         {item.posterUrl ? (
-          <Image source={{ uri: item.posterUrl }} style={styles.posterImage} />
+          <Image
+            source={{ uri: item.posterUrl }}
+            style={styles.posterImage}
+            contentFit="cover"
+            transition={400}
+            cachePolicy="memory-disk"
+          />
         ) : (
           <View style={styles.placeholderImage}>
             <MaterialCommunityIcons
@@ -125,7 +132,6 @@ export default function HomeScreen() {
         data={CATEGORIES}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        estimatedItemSize={160}
         numColumns={2}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}

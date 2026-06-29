@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
-  Dimensions,
+  useWindowDimensions,
   TextInput,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
@@ -74,6 +74,19 @@ export default function FolderViewerScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  // ── Fix 1: Visibility tracking for lazy poster loading ──
+  const [visibleHrefs, setVisibleHrefs] = useState<Set<string>>(new Set());
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ item: H5aiItem }> }) => {
+      setVisibleHrefs((prev) => {
+        const next = new Set(prev);
+        viewableItems.forEach(({ item }) => next.add(item.href));
+        return next;
+      });
+    }
+  ).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 20 }).current;
 
   // Update the stack header title to the folder name
   useEffect(() => {
@@ -175,7 +188,7 @@ export default function FolderViewerScreen() {
 
   const [gridColumns, setGridColumns] = useState<1 | 2 | 3>(3);
   const [searchQuery, setSearchQuery] = useState('');
-  const screenWidth = Dimensions.get('window').width;
+  const { width: screenWidth } = useWindowDimensions();
 
   // ── Auto-detect if this is a Movie Grid or a standard Folder/File List ──
   const isMovieGrid = useMemo(() => {
@@ -291,13 +304,14 @@ export default function FolderViewerScreen() {
         data={filteredItems}
         keyExtractor={(item) => item.href}
         numColumns={isMovieGrid ? gridColumns : 1}
-        estimatedItemSize={isMovieGrid ? (gridColumns === 1 ? 300 : 180) : 78}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         ListEmptyComponent={renderEmpty}
         onRefresh={() => loadData(true)}
         refreshing={refreshing}
         contentContainerStyle={isMovieGrid ? styles.gridContent : styles.listContent}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           if (isMovieGrid && item.size === null) {
             const fileName = item.href.split('/').filter(Boolean).pop() || 'Unknown';
             const decodedName = decodeURIComponent(fileName);
@@ -327,6 +341,8 @@ export default function FolderViewerScreen() {
                   width={cardWidth}
                   height={cardHeight}
                   layout={isList ? 'list' : 'grid'}
+                  isVisible={visibleHrefs.has(item.href)}
+                  index={index}
                 />
               </View>
             );

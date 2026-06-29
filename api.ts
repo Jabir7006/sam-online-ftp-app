@@ -12,8 +12,27 @@ export function getBaseUrlForPath(path: string): string {
   return 'http://172.16.50.7'; // fallback
 }
 
-// Simple in-memory cache to ensure instant loading of previously visited directories
+// ─────────────────────────────────────────────────────────────────────────────
+// In-memory directory cache with LRU eviction
+//
+// Previously this was an unbounded Map — every visited folder was held in RAM
+// forever. We now cap it at MAX_CACHE_SIZE entries and evict the oldest entry
+// when the cap is reached (simple FIFO approximation of LRU is sufficient here
+// because Map insertion-order iteration is guaranteed in JS/TS).
+// ─────────────────────────────────────────────────────────────────────────────
+const MAX_CACHE_SIZE = 150;
 const directoryCache = new Map<string, H5aiItem[]>();
+
+function setCacheEntry(key: string, value: H5aiItem[]): void {
+  // Evict the oldest entry if we are at capacity
+  if (directoryCache.size >= MAX_CACHE_SIZE && !directoryCache.has(key)) {
+    const oldestKey = directoryCache.keys().next().value;
+    if (oldestKey !== undefined) directoryCache.delete(oldestKey);
+  }
+  // Re-insert to move to "most recent" position
+  directoryCache.delete(key);
+  directoryCache.set(key, value);
+}
 
 /**
  * Fetches the directory listing from the h5ai server for the given path.
@@ -29,7 +48,7 @@ export async function fetchDirectory(
   forceRefresh: boolean = false
 ): Promise<H5aiItem[]> {
   if (!forceRefresh && directoryCache.has(path)) {
-    console.log(`[API] Returning cached data for: ${path}`);
+    if (__DEV__) console.log(`[API] Cache hit: ${path}`);
     return directoryCache.get(path)!;
   }
 
@@ -37,7 +56,6 @@ export async function fetchDirectory(
   const url = `${baseUrl}${path}?`;
 
   const requestBody = { action: 'get', items: { href: path, what: 1 } };
-  console.log(`[API] Request Body:`, requestBody);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -55,53 +73,46 @@ export async function fetchDirectory(
   }
 
   const rawText = await response.text();
-  console.log(`[API] Request URL: ${url}`);
-  
+
   let json: any;
   try {
     json = JSON.parse(rawText);
   } catch (error) {
-    console.warn(`[API] Failed to parse JSON response. Received text: ${rawText}`);
+    if (__DEV__) console.warn(`[API] Failed to parse JSON for: ${path}`);
     throw new Error('Invalid JSON response from server');
   }
 
   let itemsArray: H5aiItem[] = [];
 
   if (Array.isArray(json?.items)) {
-    console.log(`[API] Successfully received ${json.items.length} items`);
     itemsArray = json.items;
   } else if (Array.isArray(json)) {
-    console.log(`[API] Successfully received ${json.length} items (direct array)`);
     itemsArray = json as unknown as H5aiItem[];
   } else {
-    console.warn(
-      `Unexpected API response format. Returning empty array. Received:`,
-      json
-    );
+    if (__DEV__) console.warn(`[API] Unexpected response format for: ${path}`);
     return [];
   }
 
-  // Filter out the root entry ("/") and the parent-directory back-link
-  // (the parent back-link always has an href that does NOT start with `path`
-  // but is a different, shorter path — or it exactly equals "/").
+  // Filter out the root entry ("/") and the parent-directory back-link.
+  // Decode path once outside the loop to avoid repeated decodeURIComponent calls.
+  let decodedPath = path;
+  try {
+    decodedPath = decodeURIComponent(path);
+  } catch {}
+
   const filtered = itemsArray.filter((item: H5aiItem) => {
     if (item.href === '/') return false;
-    
-    // Decode both item.href and path before comparison 
-    // to avoid encoded vs decoded mismatches (e.g. "%20" vs " ")
+
     let decodedItemHref = item.href;
-    let decodedPath = path;
     try {
       decodedItemHref = decodeURIComponent(item.href);
-      decodedPath = decodeURIComponent(path);
     } catch {}
 
     if (!decodedItemHref.startsWith(decodedPath) || decodedItemHref === decodedPath) return false;
     return true;
   });
 
-  // Save to cache before returning
-  directoryCache.set(path, filtered);
-  
+  setCacheEntry(path, filtered);
+
   return filtered;
 }

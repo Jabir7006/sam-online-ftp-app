@@ -1,3 +1,16 @@
+/**
+ * search.tsx
+ *
+ * Optimizations applied vs. previous version:
+ *  1. FlatList → FlashList (windowed rendering for large result sets)
+ *  2. onViewableItemsChanged wired to MovieCard.isVisible (lazy poster loading)
+ *  3. index prop passed for stagger delay
+ *  4. Batched result state updates — results are buffered locally and flushed
+ *     on a 300 ms interval instead of calling setResults on every folder.
+ *     This eliminates O(n²) array spreads and excessive re-renders during search.
+ *  5. Minimum 2-char query guard — prevents full-tree crawl on single keystrokes
+ */
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -6,8 +19,8 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  FlatList,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -31,6 +44,9 @@ const ROOT_DIRS = [
   '/DHAKA-FLIX-7/Animation Movies/',
 ];
 
+/** Minimum characters before a search is triggered */
+const MIN_QUERY_LENGTH = 2;
+
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
@@ -40,9 +56,24 @@ export default function SearchScreen() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // ── Fix 2: Visibility tracking ────────────────────────────────────────────
+  const [visibleHrefs, setVisibleHrefs] = useState<Set<string>>(new Set());
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ item: H5aiItem }> }) => {
+      setVisibleHrefs((prev) => {
+        const next = new Set(prev);
+        viewableItems.forEach(({ item }) => next.add(item.href));
+        return next;
+      });
+    }
+  ).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 20 }).current;
+
   const startSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
+    // ── Fix 5: Minimum query length guard ─────────────────────────────────
+    if (searchQuery.trim().length < MIN_QUERY_LENGTH) {
       setResults([]);
+      setScannedFolders(0);
       return;
     }
 
@@ -58,16 +89,29 @@ export default function SearchScreen() {
     setIsSearching(true);
     setResults([]);
     setScannedFolders(0);
+    // Reset visible hrefs when results reset
+    setVisibleHrefs(new Set());
 
     const lowerQuery = searchQuery.toLowerCase();
     const foundItems = new Set<string>();
-    
-    // A simple queue for breadth-first traversal
+
+    // ── Fix 4: Batched result updates ─────────────────────────────────────
+    // Instead of spreading a new array on every folder resolved, we buffer
+    // new results locally and flush them to React state on a 300 ms interval.
+    let resultBuffer: H5aiItem[] = [];
+    const flushInterval = setInterval(() => {
+      if (resultBuffer.length > 0) {
+        const toFlush = resultBuffer;
+        resultBuffer = [];
+        setResults((prev) => [...prev, ...toFlush]);
+      }
+    }, 300);
+
     let queue: string[] = [...ROOT_DIRS];
     let activeRequests = 0;
-    const MAX_CONCURRENT = 3; // Keep it low for 2GB RAM safety!
+    const MAX_CONCURRENT = 3;
 
-    return new Promise<void>((resolve) => {
+    await new Promise<void>((resolve) => {
       const processQueue = async () => {
         if (signal.aborted) {
           resolve();
@@ -86,85 +130,78 @@ export default function SearchScreen() {
           fetchDirectory(currentDir, signal, false)
             .then((items) => {
               if (signal.aborted) return;
-              
-              setScannedFolders(prev => prev + 1);
 
-              const newResults: H5aiItem[] = [];
+              setScannedFolders((prev) => prev + 1);
+
               const newFolders: string[] = [];
 
               for (const item of items) {
-                const name = decodeURIComponent(item.href.split('/').filter(Boolean).pop() || '');
-                
-                // If it's a folder, we check if it matches the search, AND we might crawl it
-                // We only crawl if it's not a root dir (already crawled)
+                const name = decodeURIComponent(
+                  item.href.split('/').filter(Boolean).pop() || ''
+                );
+
                 if (item.size === null) {
-                  // Only push to queue if we haven't gone too deep.
-                  // For movies, usually depth is Category -> Year -> Movie
                   const depth = item.href.split('/').filter(Boolean).length;
-                  if (depth <= 4) { 
-                     newFolders.push(item.href);
+                  if (depth <= 4) {
+                    newFolders.push(item.href);
                   }
 
-                  // If it's a movie folder and matches the search query!
                   if (name.toLowerCase().includes(lowerQuery) && !foundItems.has(item.href)) {
-                     foundItems.add(item.href);
-                     newResults.push(item);
+                    foundItems.add(item.href);
+                    resultBuffer.push(item);
                   }
                 } else {
-                  // It's a file. If it matches, we can add it (optional)
                   if (name.toLowerCase().includes(lowerQuery) && !foundItems.has(item.href)) {
-                     foundItems.add(item.href);
-                     newResults.push(item);
+                    foundItems.add(item.href);
+                    resultBuffer.push(item);
                   }
                 }
               }
 
-              if (newResults.length > 0) {
-                setResults(prev => [...prev, ...newResults]);
-              }
-
-              // Add new subfolders to the front of the queue (DFS-ish behavior for faster perceived results)
+              // DFS-ish: prepend new subfolders for faster perceived results
               queue.unshift(...newFolders);
             })
             .catch(() => {
-              // Ignore errors (e.g. 404s or aborts)
+              // Ignore individual folder errors (404s, timeouts, aborts)
             })
             .finally(() => {
               activeRequests--;
               if (!signal.aborted) {
-                processQueue(); // trigger next
+                processQueue();
               }
             });
         }
       };
 
-      // Kick off the queue processors
       for (let i = 0; i < MAX_CONCURRENT; i++) {
         processQueue();
       }
     }).then(() => {
+      // Final flush of any remaining buffered items
+      clearInterval(flushInterval);
       if (!signal.aborted) {
+        if (resultBuffer.length > 0) {
+          setResults((prev) => [...prev, ...resultBuffer]);
+        }
         setIsSearching(false);
       }
     });
   }, []);
 
-  // Debounce the search input
+  // Debounce the search input (600 ms)
   useEffect(() => {
     const timer = setTimeout(() => {
       startSearch(query);
-    }, 800);
+    }, 600);
     return () => clearTimeout(timer);
   }, [query, startSearch]);
 
-  const handleItemPress = (item: H5aiItem) => {
-    // If it's a movie folder, open it in the browse screen
+  const handleItemPress = useCallback((item: H5aiItem) => {
     if (item.size === null) {
       const parts = item.href.split('/').filter(Boolean);
-      const builtPath = '/browse/' + parts.join('/');
-      router.push(builtPath as any);
+      router.push((`/browse/${parts.join('/')}`) as any);
     }
-  };
+  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -177,7 +214,7 @@ export default function SearchScreen() {
           <MaterialCommunityIcons name="magnify" size={22} color={COLORS.textSecondary} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search all movies..."
+            placeholder={`Search movies (min ${MIN_QUERY_LENGTH} chars)...`}
             placeholderTextColor={COLORS.textSecondary}
             value={query}
             onChangeText={setQuery}
@@ -192,50 +229,55 @@ export default function SearchScreen() {
       </View>
 
       {/* Progress / Status */}
-      {query.length > 0 && (
+      {query.length >= MIN_QUERY_LENGTH && (
         <View style={styles.statusContainer}>
           {isSearching ? (
-             <View style={styles.searchingRow}>
-               <ActivityIndicator size="small" color={COLORS.red} />
-               <Text style={styles.statusText}>
-                 Searching... (Scanned {scannedFolders} folders)
-               </Text>
-             </View>
+            <View style={styles.searchingRow}>
+              <ActivityIndicator size="small" color={COLORS.red} />
+              <Text style={styles.statusText}>
+                Searching… ({scannedFolders} folders scanned)
+              </Text>
+            </View>
           ) : (
-             <Text style={styles.statusText}>
-               Found {results.length} results
-             </Text>
+            <Text style={styles.statusText}>
+              {results.length === 0 ? 'No results found' : `${results.length} results`}
+            </Text>
           )}
         </View>
       )}
 
-      {/* Results */}
-      <FlatList
+      {/* Results — FlashList for virtualized rendering */}
+      <FlashList
         data={results}
-        keyExtractor={item => item.href}
+        keyExtractor={(item) => item.href}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => {
+        showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        renderItem={({ item, index }) => {
           const name = decodeURIComponent(item.href.split('/').filter(Boolean).pop() || '');
           if (item.size === null) {
             return (
               <View style={styles.listItemWrapper}>
-                <MovieCard 
-                  href={item.href} 
-                  title={name} 
-                  onPress={() => handleItemPress(item)} 
+                <MovieCard
+                  href={item.href}
+                  title={name}
+                  onPress={() => handleItemPress(item)}
                   width="100%"
                   height={100}
                   layout="list"
+                  isVisible={visibleHrefs.has(item.href)}
+                  index={index}
                 />
               </View>
             );
           }
-          // If it's a file, just render text or something (or use FileItem)
+          // File result
           return (
-             <View style={styles.fileItem}>
-                <MaterialCommunityIcons name="file-video" size={24} color="#29B6F6" />
-                <Text style={styles.fileText} numberOfLines={1}>{name}</Text>
-             </View>
+            <View style={styles.fileItem}>
+              <MaterialCommunityIcons name="file-video" size={24} color="#29B6F6" />
+              <Text style={styles.fileText} numberOfLines={1}>{name}</Text>
+            </View>
           );
         }}
       />
@@ -311,5 +353,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 12,
     flex: 1,
-  }
+  },
 });
