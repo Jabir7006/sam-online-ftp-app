@@ -1,0 +1,450 @@
+diff --git a/node_modules/react-native/src/private/components/virtualview/VirtualViewExperimentalNativeComponent.js b/node_modules/react-native/src/private/components/virtualview/VirtualViewExperimentalNativeComponent.js
+index c640b5a..1194c03 100644
+--- a/node_modules/react-native/src/private/components/virtualview/VirtualViewExperimentalNativeComponent.js
++++ b/node_modules/react-native/src/private/components/virtualview/VirtualViewExperimentalNativeComponent.js
+@@ -18,7 +18,7 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-export type NativeModeChangeEvent = Readonly<{
++export type NativeModeChangeEvent = $ReadOnly<{|
+   /**
+    * Virtualization mode of the target view.
+    *
+@@ -34,12 +34,12 @@ export type NativeModeChangeEvent = Readonly<{
+   /**
+    * Rect of the target view, relative to the nearest ancestor scroll container.
+    */
+-  targetRect: Readonly<{
++  targetRect: $ReadOnly<{|
+     x: Double,
+     y: Double,
+     width: Double,
+     height: Double,
+-  }>,
++  |}>,
+ 
+   /**
+    * Rect of the threshold that determines the mode of the target view, relative
+@@ -51,15 +51,15 @@ export type NativeModeChangeEvent = Readonly<{
+    *
+    * This can be used to determine whether and how much new content to render.
+    */
+-  thresholdRect: Readonly<{
++  thresholdRect: $ReadOnly<{|
+     x: Double,
+     y: Double,
+     width: Double,
+     height: Double,
+-  }>,
+-}>;
++  |}>,
++|}>;
+ 
+-type VirtualViewExperimentalNativeProps = Readonly<{
++type VirtualViewExperimentalNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   /**
+@@ -89,12 +89,12 @@ type VirtualViewExperimentalNativeProps = Readonly<{
+    * See `NativeModeChangeEvent`.
+    */
+   onModeChange?: ?DirectEventHandler<NativeModeChangeEvent>,
+-}>;
++|}>;
+ 
+ // TODO: Rename to eliminate "Experimental" suffix in the name.
+-export default codegenNativeComponent<VirtualViewExperimentalNativeProps>(
++export default (codegenNativeComponent<VirtualViewExperimentalNativeProps>(
+   'VirtualViewExperimental',
+   {
+     interfaceOnly: true,
+   },
+-) as HostComponent<VirtualViewExperimentalNativeProps>;
++): HostComponent<VirtualViewExperimentalNativeProps>);
+diff --git a/node_modules/react-native/src/private/components/virtualview/VirtualViewNativeComponent.js b/node_modules/react-native/src/private/components/virtualview/VirtualViewNativeComponent.js
+index 4ba5b68..cab6694 100644
+--- a/node_modules/react-native/src/private/components/virtualview/VirtualViewNativeComponent.js
++++ b/node_modules/react-native/src/private/components/virtualview/VirtualViewNativeComponent.js
+@@ -18,7 +18,7 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-export type NativeModeChangeEvent = Readonly<{
++export type NativeModeChangeEvent = $ReadOnly<{|
+   /**
+    * Virtualization mode of the target view.
+    *
+@@ -34,12 +34,12 @@ export type NativeModeChangeEvent = Readonly<{
+   /**
+    * Rect of the target view, relative to the nearest ancestor scroll container.
+    */
+-  targetRect: Readonly<{
++  targetRect: $ReadOnly<{|
+     x: Double,
+     y: Double,
+     width: Double,
+     height: Double,
+-  }>,
++  |}>,
+ 
+   /**
+    * Rect of the threshold that determines the mode of the target view, relative
+@@ -51,15 +51,15 @@ export type NativeModeChangeEvent = Readonly<{
+    *
+    * This can be used to determine whether and how much new content to render.
+    */
+-  thresholdRect: Readonly<{
++  thresholdRect: $ReadOnly<{|
+     x: Double,
+     y: Double,
+     width: Double,
+     height: Double,
+-  }>,
+-}>;
++  |}>,
++|}>;
+ 
+-type VirtualViewNativeProps = Readonly<{
++type VirtualViewNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   /**
+@@ -89,8 +89,8 @@ type VirtualViewNativeProps = Readonly<{
+    * See `NativeModeChangeEvent`.
+    */
+   onModeChange?: ?DirectEventHandler<NativeModeChangeEvent>,
+-}>;
++|}>;
+ 
+-export default codegenNativeComponent<VirtualViewNativeProps>('VirtualView', {
++export default (codegenNativeComponent<VirtualViewNativeProps>('VirtualView', {
+   interfaceOnly: true,
+-}) as HostComponent<VirtualViewNativeProps>;
++}): HostComponent<VirtualViewNativeProps>);
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/ActivityIndicatorViewNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/ActivityIndicatorViewNativeComponent.js
+index 2259e92..ee6ac1e 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/ActivityIndicatorViewNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/ActivityIndicatorViewNativeComponent.js
+@@ -15,7 +15,7 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-type RCTActivityIndicatorViewNativeProps = Readonly<{
++type RCTActivityIndicatorViewNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   /**
+@@ -46,7 +46,7 @@ type RCTActivityIndicatorViewNativeProps = Readonly<{
+    * See https://reactnative.dev/docs/activityindicator#size
+    */
+   size?: WithDefault<'small' | 'large', 'small'>,
+-}>;
++|}>;
+ 
+ export default (codegenNativeComponent<RCTActivityIndicatorViewNativeProps>(
+   'ActivityIndicatorView',
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidDrawerLayoutNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidDrawerLayoutNativeComponent.js
+index 22ce1ab..4f6fa0c 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidDrawerLayoutNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidDrawerLayoutNativeComponent.js
+@@ -22,15 +22,15 @@ import codegenNativeCommands from '../../../../Libraries/Utilities/codegenNative
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ import * as React from 'react';
+ 
+-type DrawerStateEvent = Readonly<{
++type DrawerStateEvent = $ReadOnly<{|
+   drawerState: Int32,
+-}>;
++|}>;
+ 
+-type DrawerSlideEvent = Readonly<{
++type DrawerSlideEvent = $ReadOnly<{|
+   offset: Float,
+-}>;
++|}>;
+ 
+-type AndroidDrawerLayoutNativeProps = Readonly<{
++type AndroidDrawerLayoutNativeProps = $ReadOnly<{|
+   ...ViewProps,
+   /**
+    * Determines whether the keyboard gets dismissed in response to a drag.
+@@ -106,7 +106,7 @@ type AndroidDrawerLayoutNativeProps = Readonly<{
+    * effect on API 21+.
+    */
+   statusBarBackgroundColor?: ?ColorValue,
+-}>;
++|}>;
+ 
+ type NativeType = HostComponent<AndroidDrawerLayoutNativeProps>;
+ 
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidHorizontalScrollContentViewNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidHorizontalScrollContentViewNativeComponent.js
+index b417a64..a3a7413 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidHorizontalScrollContentViewNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidHorizontalScrollContentViewNativeComponent.js
+@@ -13,11 +13,11 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-type AndroidHorizontalScrollContentViewNativeProps = Readonly<{
++type AndroidHorizontalScrollContentViewNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   removeClippedSubviews?: ?boolean,
+-}>;
++|}>;
+ 
+ type NativeType = HostComponent<AndroidHorizontalScrollContentViewNativeProps>;
+ 
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidSwipeRefreshLayoutNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidSwipeRefreshLayoutNativeComponent.js
+index 35acd83..2df9181 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidSwipeRefreshLayoutNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidSwipeRefreshLayoutNativeComponent.js
+@@ -21,7 +21,7 @@ import codegenNativeCommands from '../../../../Libraries/Utilities/codegenNative
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ import * as React from 'react';
+ 
+-type AndroidSwipeRefreshLayoutNativeProps = Readonly<{
++type AndroidSwipeRefreshLayoutNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   /**
+@@ -31,7 +31,7 @@ type AndroidSwipeRefreshLayoutNativeProps = Readonly<{
+   /**
+    * The colors (at least one) that will be used to draw the refresh indicator.
+    */
+-  colors?: ?ReadonlyArray<ColorValue>,
++  colors?: ?$ReadOnlyArray<ColorValue>,
+   /**
+    * The background color of the refresh indicator.
+    */
+@@ -54,7 +54,7 @@ type AndroidSwipeRefreshLayoutNativeProps = Readonly<{
+    * Whether the view should be indicating an active refresh.
+    */
+   refreshing: boolean,
+-}>;
++|}>;
+ 
+ type NativeType = HostComponent<AndroidSwipeRefreshLayoutNativeProps>;
+ 
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidSwitchNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidSwitchNativeComponent.js
+index c91e734..d08cd52 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidSwitchNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/AndroidSwitchNativeComponent.js
+@@ -21,12 +21,12 @@ import codegenNativeCommands from '../../../../Libraries/Utilities/codegenNative
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ import * as React from 'react';
+ 
+-type AndroidSwitchChangeEvent = Readonly<{
++type AndroidSwitchChangeEvent = $ReadOnly<{|
+   value: boolean,
+   target: Int32,
+-}>;
++|}>;
+ 
+-type AndroidSwitchNativeProps = Readonly<{
++type AndroidSwitchNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   // Props
+@@ -42,7 +42,7 @@ type AndroidSwitchNativeProps = Readonly<{
+ 
+   // Events
+   onChange?: BubblingEventHandler<AndroidSwitchChangeEvent>,
+-}>;
++|}>;
+ 
+ type NativeType = HostComponent<AndroidSwitchNativeProps>;
+ 
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/DebuggingOverlayNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/DebuggingOverlayNativeComponent.js
+index 178951b..b3895e9 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/DebuggingOverlayNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/DebuggingOverlayNativeComponent.js
+@@ -16,9 +16,9 @@ import codegenNativeCommands from '../../../../Libraries/Utilities/codegenNative
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ import * as React from 'react';
+ 
+-type DebuggingOverlayNativeProps = Readonly<{
++type DebuggingOverlayNativeProps = $ReadOnly<{|
+   ...ViewProps,
+-}>;
++|}>;
+ export type DebuggingOverlayNativeComponentType =
+   HostComponent<DebuggingOverlayNativeProps>;
+ 
+@@ -38,11 +38,11 @@ export type ElementRectangle = {
+ interface NativeCommands {
+   +highlightTraceUpdates: (
+     viewRef: React.ElementRef<DebuggingOverlayNativeComponentType>,
+-    updates: ReadonlyArray<TraceUpdate>,
++    updates: $ReadOnlyArray<TraceUpdate>,
+   ) => void;
+   +highlightElements: (
+     viewRef: React.ElementRef<DebuggingOverlayNativeComponentType>,
+-    elements: ReadonlyArray<ElementRectangle>,
++    elements: $ReadOnlyArray<ElementRectangle>,
+   ) => void;
+   +clearElementsHighlights: (
+     viewRef: React.ElementRef<DebuggingOverlayNativeComponentType>,
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/ProgressBarAndroidNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/ProgressBarAndroidNativeComponent.js
+index 1c2f055..d41c739 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/ProgressBarAndroidNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/ProgressBarAndroidNativeComponent.js
+@@ -18,7 +18,7 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-type AndroidProgressBarNativeProps = Readonly<{
++type AndroidProgressBarNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   //Props
+@@ -29,7 +29,7 @@ type AndroidProgressBarNativeProps = Readonly<{
+   animating?: WithDefault<boolean, true>,
+   color?: ?ColorValue,
+   testID?: WithDefault<string, ''>,
+-}>;
++|}>;
+ 
+ export default (codegenNativeComponent<AndroidProgressBarNativeProps>(
+   'AndroidProgressBar',
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/PullToRefreshViewNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/PullToRefreshViewNativeComponent.js
+index e72d19b..c137422 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/PullToRefreshViewNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/PullToRefreshViewNativeComponent.js
+@@ -21,7 +21,7 @@ import codegenNativeCommands from '../../../../Libraries/Utilities/codegenNative
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ import * as React from 'react';
+ 
+-type PullToRefreshNativeProps = Readonly<{
++type PullToRefreshNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   /**
+@@ -50,7 +50,7 @@ type PullToRefreshNativeProps = Readonly<{
+    * Whether the view should be indicating an active refresh.
+    */
+   refreshing: boolean,
+-}>;
++|}>;
+ 
+ type ComponentType = HostComponent<PullToRefreshNativeProps>;
+ 
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTInputAccessoryViewNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTInputAccessoryViewNativeComponent.js
+index 334ca0e..6680f39 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTInputAccessoryViewNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTInputAccessoryViewNativeComponent.js
+@@ -14,10 +14,10 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-type InputAccessoryNativeProps = Readonly<{
++type InputAccessoryNativeProps = $ReadOnly<{|
+   ...ViewProps,
+   backgroundColor?: ?ColorValue,
+-}>;
++|}>;
+ 
+ export default (codegenNativeComponent<InputAccessoryNativeProps>(
+   'InputAccessory',
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTModalHostViewNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTModalHostViewNativeComponent.js
+index a27f5b3..dc14825 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTModalHostViewNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTModalHostViewNativeComponent.js
+@@ -18,11 +18,11 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-type OrientationChangeEvent = Readonly<{
++type OrientationChangeEvent = $ReadOnly<{|
+   orientation: 'portrait' | 'landscape',
+-}>;
++|}>;
+ 
+-type RCTModalHostViewNativeProps = Readonly<{
++type RCTModalHostViewNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   /**
+@@ -124,7 +124,7 @@ type RCTModalHostViewNativeProps = Readonly<{
+    * See https://reactnative.dev/docs/modal#supportedorientations
+    */
+   supportedOrientations?: WithDefault<
+-    ReadonlyArray<
++    $ReadOnlyArray<
+       | 'portrait'
+       | 'portrait-upside-down'
+       | 'landscape'
+@@ -145,7 +145,7 @@ type RCTModalHostViewNativeProps = Readonly<{
+    * The `identifier` is the unique number for identifying Modal components.
+    */
+   identifier?: WithDefault<Int32, 0>,
+-}>;
++|}>;
+ 
+ export default (codegenNativeComponent<RCTModalHostViewNativeProps>(
+   'ModalHostView',
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTSafeAreaViewNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTSafeAreaViewNativeComponent.js
+index d697433..a2047ac 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTSafeAreaViewNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/RCTSafeAreaViewNativeComponent.js
+@@ -13,11 +13,11 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-type RCTSafeAreaViewNativeProps = Readonly<{
++type RCTSafeAreaViewNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   // No props
+-}>;
++|}>;
+ 
+ export default (codegenNativeComponent<RCTSafeAreaViewNativeProps>(
+   'SafeAreaView',
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/SwitchNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/SwitchNativeComponent.js
+index 3d6feb9..483cb40 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/SwitchNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/SwitchNativeComponent.js
+@@ -21,12 +21,12 @@ import codegenNativeCommands from '../../../../Libraries/Utilities/codegenNative
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ import * as React from 'react';
+ 
+-type NativeSwitchChangeEvent = Readonly<{
++type NativeSwitchChangeEvent = $ReadOnly<{|
+   value: boolean,
+   target: Int32,
+-}>;
++|}>;
+ 
+-type SwitchNativeProps = Readonly<{
++type SwitchNativeProps = $ReadOnly<{|
+   ...ViewProps,
+ 
+   // Props
+@@ -43,7 +43,7 @@ type SwitchNativeProps = Readonly<{
+ 
+   // Events
+   onChange?: ?BubblingEventHandler<NativeSwitchChangeEvent>,
+-}>;
++|}>;
+ 
+ type ComponentType = HostComponent<SwitchNativeProps>;
+ 
+diff --git a/node_modules/react-native/src/private/specs_DEPRECATED/components/UnimplementedNativeViewNativeComponent.js b/node_modules/react-native/src/private/specs_DEPRECATED/components/UnimplementedNativeViewNativeComponent.js
+index f7c79c3..3bfd6b3 100644
+--- a/node_modules/react-native/src/private/specs_DEPRECATED/components/UnimplementedNativeViewNativeComponent.js
++++ b/node_modules/react-native/src/private/specs_DEPRECATED/components/UnimplementedNativeViewNativeComponent.js
+@@ -14,10 +14,10 @@ import type {HostComponent} from '../../types/HostComponent';
+ 
+ import codegenNativeComponent from '../../../../Libraries/Utilities/codegenNativeComponent';
+ 
+-type UnimplementedNativeViewNativeProps = Readonly<{
++type UnimplementedNativeViewNativeProps = $ReadOnly<{|
+   ...ViewProps,
+   name?: WithDefault<string, ''>,
+-}>;
++|}>;
+ 
+ // NOTE: This component is not implemented in paper
+ // Do not require this file in paper builds
