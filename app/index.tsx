@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, Image } from "react-native";
+import { View, Text, StyleSheet, Pressable, Image, TouchableOpacity } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -109,11 +109,16 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>
-          SAM<Text style={{ color: COLORS.red }}>FLIX</Text>
-        </Text>
-        <Text style={styles.headerSubtitle}>Select a category to explore</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 16, flexDirection: 'row', alignItems: 'center' }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>
+            SAM<Text style={{ color: COLORS.red }}>FLIX</Text>
+          </Text>
+          <Text style={styles.headerSubtitle}>Select a category to explore</Text>
+        </View>
+        <TouchableOpacity onPress={() => router.push('/search')} style={styles.searchBtn}>
+          <MaterialCommunityIcons name="magnify" size={28} color={COLORS.textPrimary} />
+        </TouchableOpacity>
       </View>
 
       <FlashList
@@ -149,6 +154,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     marginTop: 4,
+  },
+  searchBtn: {
+    padding: 8,
+    backgroundColor: COLORS.surfaceHover,
+    borderRadius: 20,
   },
   listContent: {
     paddingHorizontal: 12,

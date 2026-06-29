@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
@@ -173,6 +174,7 @@ export default function FolderViewerScreen() {
   }, [loading]);
 
   const [gridColumns, setGridColumns] = useState<1 | 2 | 3>(3);
+  const [searchQuery, setSearchQuery] = useState('');
   const screenWidth = Dimensions.get('window').width;
 
   // ── Auto-detect if this is a Movie Grid or a standard Folder/File List ──
@@ -200,6 +202,16 @@ export default function FolderViewerScreen() {
     if (fileCount > regularFolderCount) return false;
     return regularFolderCount > 0;
   }, [items]);
+
+  // ── Local Filter ──
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return items;
+    const lowerQuery = searchQuery.toLowerCase();
+    return items.filter(item => {
+      const name = decodeURIComponent(item.href.split('/').filter(Boolean).pop() || '').toLowerCase();
+      return name.includes(lowerQuery);
+    });
+  }, [items, searchQuery]);
 
   // ── Error state ──
   if (error) {
@@ -231,13 +243,31 @@ export default function FolderViewerScreen() {
 
   return (
     <View style={[styles.screen, { paddingBottom: insets.bottom }]}>
-      {/* Breadcrumb strip */}
+      {/* Search & Breadcrumb Bar */}
+      <View style={styles.searchBarContainer}>
+        <View style={styles.searchInputWrapper}>
+          <MaterialCommunityIcons name="magnify" size={20} color={COLORS.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search this folder..."
+            placeholderTextColor={COLORS.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <MaterialCommunityIcons name="close-circle" size={18} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
       <View style={styles.breadcrumbBar}>
         <MaterialCommunityIcons name="server-network" size={14} color={COLORS.red} />
         <Text style={styles.breadcrumbText} numberOfLines={1} ellipsizeMode="head">
           {breadcrumb}
         </Text>
-        <Text style={styles.countBadge}>{items.length}</Text>
+        <Text style={styles.countBadge}>{filteredItems.length}</Text>
         
         {isMovieGrid && (
           <View style={styles.gridToggles}>
@@ -258,7 +288,7 @@ export default function FolderViewerScreen() {
       <FlashList
         // FlashList requires a unique key if numColumns changes, so we force a remount
         key={isMovieGrid ? `grid-${gridColumns}` : 'list'}
-        data={items}
+        data={filteredItems}
         keyExtractor={(item) => item.href}
         numColumns={isMovieGrid ? gridColumns : 1}
         estimatedItemSize={isMovieGrid ? (gridColumns === 1 ? 300 : 180) : 78}
@@ -330,6 +360,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 17,
     flexShrink: 1,
+  },
+  // ── Search Bar ──
+  searchBarContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#111111',
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1C1C1C',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 40,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 14,
+    marginLeft: 8,
+    height: '100%',
   },
   // ── Breadcrumb ──
   breadcrumbBar: {
