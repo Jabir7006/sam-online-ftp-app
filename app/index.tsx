@@ -21,19 +21,22 @@ const CATEGORIES = [
     id: "english",
     title: "English Movies",
     href: "/DHAKA-FLIX-7/English%20Movies/",
-    posterUrl: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop", 
+    posterUrl:
+      "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop",
   },
   {
     id: "hindi",
     title: "Hindi Movies",
     href: "/DHAKA-FLIX-14/Hindi%20Movies/",
-    posterUrl: "https://images.unsplash.com/photo-1570534279782-b7e2cc4a34b4?q=80&w=600&auto=format&fit=crop",
+    posterUrl:
+      "https://images.unsplash.com/photo-1570534279782-b7e2cc4a34b4?q=80&w=600&auto=format&fit=crop",
   },
   {
     id: "bangla",
     title: "Kolkata Bangla Movies",
     href: "/DHAKA-FLIX-7/Kolkata%20Bangla%20Movies/",
-    posterUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop",
+    posterUrl:
+      "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop",
   },
   {
     id: "foreign",
@@ -41,9 +44,9 @@ const CATEGORIES = [
     href: "/DHAKA-FLIX-7/Foreign%20Language%20Movies/",
     posterUrl: null,
   },
-  { 
-    id: "3d", 
-    title: "3D Movies", 
+  {
+    id: "3d",
+    title: "3D Movies",
     href: "/DHAKA-FLIX-7/3D%20Movies/",
     posterUrl: null,
   },
@@ -51,7 +54,8 @@ const CATEGORIES = [
     id: "animation",
     title: "Animation Movies",
     href: "/DHAKA-FLIX-14/Animation%20Movies/",
-    posterUrl: "https://images.unsplash.com/photo-1580477667995-15608401ed8a?q=80&w=600&auto=format&fit=crop",
+    posterUrl:
+      "https://images.unsplash.com/photo-1580477667995-15608401ed8a?q=80&w=600&auto=format&fit=crop",
   },
   {
     id: "south_indian",
@@ -87,10 +91,14 @@ export default function HomeScreen() {
           <Image source={{ uri: item.posterUrl }} style={styles.posterImage} />
         ) : (
           <View style={styles.placeholderImage}>
-            <MaterialCommunityIcons name="folder-play-outline" size={32} color={COLORS.textSecondary} />
+            <MaterialCommunityIcons
+              name="folder-play-outline"
+              size={32}
+              color={COLORS.textSecondary}
+            />
           </View>
         )}
-        
+
         <View style={styles.gradientOverlay}>
           <Text style={styles.itemTitle}>{item.title}</Text>
         </View>
@@ -102,7 +110,9 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>SAM<Text style={{color: COLORS.red}}>FLIX</Text></Text>
+        <Text style={styles.headerTitle}>
+          SAM<Text style={{ color: COLORS.red }}>FLIX</Text>
+        </Text>
         <Text style={styles.headerSubtitle}>Select a category to explore</Text>
       </View>
 

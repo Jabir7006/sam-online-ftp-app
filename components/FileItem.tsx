@@ -4,9 +4,12 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  Linking,
+  TouchableOpacity,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { H5aiItem } from '../types';
+import { getBaseUrlForPath } from '../api';
 
 // ─────────────────────────────────────────────
 // Colour palette
@@ -96,6 +99,14 @@ const FileItem = React.memo<FileItemProps>(({ item, onPress }) => {
 
   const handlePress = useCallback(() => onPress(item), [onPress, item]);
 
+  const handleDownload = useCallback(() => {
+    const baseUrl = getBaseUrlForPath(item.href);
+    const absoluteUrl = `${baseUrl}${item.href}`;
+    Linking.openURL(absoluteUrl).catch(err => {
+      console.warn("Failed to open URL for download:", err);
+    });
+  }, [item.href]);
+
   return (
     <Pressable
       style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}
@@ -131,15 +142,23 @@ const FileItem = React.memo<FileItemProps>(({ item, onPress }) => {
         </View>
       </View>
 
-      {/* Chevron */}
-      {isFolder && (
+      {/* Actions */}
+      {isFolder ? (
         <MaterialCommunityIcons
           name="chevron-right"
           size={22}
           color={COLORS.textSecondary}
           style={styles.chevron}
         />
-      )}
+      ) : isVideo ? (
+        <TouchableOpacity style={styles.downloadBtn} onPress={handleDownload}>
+           <MaterialCommunityIcons
+             name="download"
+             size={22}
+             color={COLORS.textPrimary}
+           />
+        </TouchableOpacity>
+      ) : null}
     </Pressable>
   );
 });
@@ -204,5 +223,11 @@ const styles = StyleSheet.create({
   },
   chevron: {
     marginLeft: 8,
+  },
+  downloadBtn: {
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
 });
