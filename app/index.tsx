@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, StyleSheet, Pressable, Image } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -13,46 +13,51 @@ const COLORS = {
   red: "#E50914",
   textPrimary: "#FFFFFF",
   textSecondary: "#9E9E9E",
-  folderIcon: "#FFB300",
 };
 
-// Define our hardcoded servers/categories
+// Hardcoded categories. Add `posterUrl` to manually set the poster for each category!
 const CATEGORIES = [
   {
     id: "english",
     title: "English Movies",
     href: "/DHAKA-FLIX-7/English%20Movies/",
+    posterUrl: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop", 
   },
   {
     id: "hindi",
     title: "Hindi Movies",
     href: "/DHAKA-FLIX-14/Hindi%20Movies/",
+    posterUrl: "https://images.unsplash.com/photo-1570534279782-b7e2cc4a34b4?q=80&w=600&auto=format&fit=crop",
   },
   {
     id: "bangla",
     title: "Kolkata Bangla Movies",
     href: "/DHAKA-FLIX-7/Kolkata%20Bangla%20Movies/",
+    posterUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop",
   },
   {
     id: "foreign",
     title: "Foreign Language Movies",
     href: "/DHAKA-FLIX-7/Foreign%20Language%20Movies/",
+    posterUrl: null,
   },
-  { id: "3d", title: "3D Movies", href: "/DHAKA-FLIX-7/3D%20Movies/" },
+  { 
+    id: "3d", 
+    title: "3D Movies", 
+    href: "/DHAKA-FLIX-7/3D%20Movies/",
+    posterUrl: null,
+  },
   {
     id: "animation",
     title: "Animation Movies",
     href: "/DHAKA-FLIX-14/Animation%20Movies/",
+    posterUrl: "https://images.unsplash.com/photo-1580477667995-15608401ed8a?q=80&w=600&auto=format&fit=crop",
   },
   {
     id: "south_indian",
     title: "South Indian Movies",
     href: "/DHAKA-FLIX-14/SOUTH%20INDIAN%20MOVIES/",
-  },
-  {
-    id: "south_dubbed",
-    title: "South-Movie Hindi Dubbed",
-    href: "/DHAKA-FLIX-14/SOUTH%20INDIAN%20MOVIES/Hindi%20Dubbed/",
+    posterUrl: null,
   },
 ];
 
@@ -60,7 +65,6 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
 
   const handlePress = useCallback((href: string) => {
-    // Strip trailing slash if present for building the expo route path
     let navPath = href.startsWith("/") ? href.slice(1) : href;
     navPath = navPath.replace(/\/$/, "");
 
@@ -78,29 +82,18 @@ export default function HomeScreen() {
           pressed && styles.itemPressed,
         ]}
         onPress={() => handlePress(item.href)}
-        android_ripple={{ color: "rgba(229,9,20,0.15)", borderless: false }}
       >
-        <View
-          style={[
-            styles.iconWrap,
-            { backgroundColor: COLORS.folderIcon + "22" },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name="folder-multiple"
-            size={26}
-            color={COLORS.folderIcon}
-          />
-        </View>
-        <View style={styles.textWrap}>
+        {item.posterUrl ? (
+          <Image source={{ uri: item.posterUrl }} style={styles.posterImage} />
+        ) : (
+          <View style={styles.placeholderImage}>
+            <MaterialCommunityIcons name="folder-play-outline" size={32} color={COLORS.textSecondary} />
+          </View>
+        )}
+        
+        <View style={styles.gradientOverlay}>
           <Text style={styles.itemTitle}>{item.title}</Text>
-          <Text style={styles.itemSubtitle}>FTP Directory</Text>
         </View>
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={22}
-          color={COLORS.textSecondary}
-        />
       </Pressable>
     ),
     [handlePress],
@@ -109,15 +102,16 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>Sam Online</Text>
-        <Text style={styles.headerSubtitle}>Choose a category to browse</Text>
+        <Text style={styles.headerTitle}>SAM<Text style={{color: COLORS.red}}>FLIX</Text></Text>
+        <Text style={styles.headerSubtitle}>Select a category to explore</Text>
       </View>
 
       <FlashList
         data={CATEGORIES}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        estimatedItemSize={78}
+        estimatedItemSize={160}
+        numColumns={2}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -132,60 +126,65 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: "#111111",
+    paddingBottom: 16,
+    backgroundColor: COLORS.bg,
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: "800",
-    color: COLORS.red,
-    marginBottom: 4,
+    fontWeight: "900",
+    color: COLORS.textPrimary,
+    letterSpacing: 1,
   },
   headerSubtitle: {
     fontSize: 14,
     color: COLORS.textSecondary,
+    marginTop: 4,
   },
   listContent: {
-    paddingTop: 12,
+    paddingHorizontal: 12,
+    paddingTop: 8,
     paddingBottom: 24,
   },
   itemContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 12,
-    marginVertical: 6,
+    flex: 1,
+    height: 160,
+    marginHorizontal: 6,
+    marginVertical: 8,
     borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   itemPressed: {
-    backgroundColor: COLORS.surfaceHover,
-    transform: [{ scale: 0.985 }],
+    transform: [{ scale: 0.96 }],
+    opacity: 0.9,
   },
-  iconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  posterImage: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+  },
+  placeholderImage: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    backgroundColor: COLORS.surfaceHover,
   },
-  textWrap: {
+  gradientOverlay: {
     flex: 1,
-    gap: 4,
+    justifyContent: "flex-end",
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   itemTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "bold",
     color: COLORS.textPrimary,
-  },
-  itemSubtitle: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });

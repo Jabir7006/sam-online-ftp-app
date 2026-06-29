@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchDirectory } from '../../api';
 import type { H5aiItem } from '../../types';
 import FileItem from '../../components/FileItem';
+import MovieCard from '../../components/MovieCard';
 
 // ─────────────────────────────────────────────
 // Colour palette
@@ -170,6 +171,37 @@ export default function FolderViewerScreen() {
     );
   }, [loading]);
 
+  // ── Auto-detect if this is a Movie Grid or a standard Folder/File List ──
+  const isMovieGrid = useMemo(() => {
+    if (items.length === 0) return false;
+    
+    let yearFolderCount = 0;
+    let regularFolderCount = 0;
+    let fileCount = 0;
+
+    items.forEach(item => {
+      if (item.size !== null) {
+        fileCount++;
+      } else {
+        const name = decodeURIComponent(item.href.split('/').filter(Boolean).pop() || '');
+        if (name.match(/^\(\d{4}(?:-\d{4})?\)$/)) {
+          yearFolderCount++;
+        } else {
+          regularFolderCount++;
+        }
+      }
+    });
+
+    // If there are more year folders than regular folders, it's a Year List
+    if (yearFolderCount > 0 && yearFolderCount >= regularFolderCount) return false;
+    
+    // If it contains mostly files (like videos), it's a File List
+    if (fileCount > regularFolderCount) return false;
+
+    // Otherwise, we assume these are Movie Folders!
+    return regularFolderCount > 0;
+  }, [items]);
+
   // ── Error state ──
   if (error) {
     return (
@@ -211,17 +243,37 @@ export default function FolderViewerScreen() {
 
       {/* Main list */}
       <FlashList
+        // FlashList requires a unique key if numColumns changes, so we force a remount
+        key={isMovieGrid ? 'grid' : 'list'}
         data={items}
         keyExtractor={(item) => item.href}
-        renderItem={({ item }) => (
-          <FileItem item={item} onPress={handleItemPress} />
-        )}
-        estimatedItemSize={78}
+        numColumns={isMovieGrid ? 3 : 1}
+        estimatedItemSize={isMovieGrid ? 180 : 78}
         ListEmptyComponent={renderEmpty}
         onRefresh={() => loadData(true)}
         refreshing={refreshing}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={isMovieGrid ? styles.gridContent : styles.listContent}
         showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => {
+          if (isMovieGrid && item.size === null) {
+            const fileName = item.href.split('/').filter(Boolean).pop() || 'Unknown';
+            const decodedName = decodeURIComponent(fileName);
+            // Render as Netflix-style poster card
+            return (
+              <View style={styles.gridItemWrapper}>
+                <MovieCard 
+                  href={item.href}
+                  title={decodedName}
+                  onPress={(href) => handleItemPress(item)}
+                  width={110}
+                  height={160}
+                />
+              </View>
+            );
+          }
+          // Default list item rendering
+          return <FileItem item={item} onPress={handleItemPress} />;
+        }}
       />
     </View>
   );
@@ -280,6 +332,16 @@ const styles = StyleSheet.create({
   listContent: {
     paddingTop: 8,
     paddingBottom: 24,
+  },
+  gridContent: {
+    paddingTop: 16,
+    paddingBottom: 24,
+    paddingHorizontal: 8,
+  },
+  gridItemWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   // ── States ──
   centeredContainer: {
