@@ -9,11 +9,12 @@ interface MovieCardProps {
   href: string;
   title: string;
   onPress: (href: string, title: string) => void;
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
+  layout?: 'grid' | 'list';
 }
 
-const MovieCard = memo(({ href, title, onPress, width = 120, height = 180 }: MovieCardProps) => {
+const MovieCard = memo(({ href, title, onPress, width = 120, height = 180, layout = 'grid' }: MovieCardProps) => {
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -64,16 +65,18 @@ const MovieCard = memo(({ href, title, onPress, width = 120, height = 180 }: Mov
   // Clean up the title (remove years, 720p, etc if we want, or keep it)
   const cleanTitle = title.replace(/\s*\(\d{4}\).*$/, '').replace(/\s*\d{3,4}p.*$/, '').replace(/-\s*$/, '').trim();
 
+  const isList = layout === 'list';
+
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.container,
+        isList ? styles.listContainer : styles.gridContainer,
         { width, height },
         pressed && styles.pressed
       ]}
       onPress={() => onPress(href, cleanTitle)}
     >
-      <View style={styles.imageContainer}>
+      <View style={isList ? styles.listImageContainer : styles.gridImageContainer}>
         {loading ? (
           <View style={styles.placeholder}>
             <ActivityIndicator color="#E50914" />
@@ -92,14 +95,23 @@ const MovieCard = memo(({ href, title, onPress, width = 120, height = 180 }: Mov
           </View>
         )}
         
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.9)']}
-          locations={[0, 0.4, 1]}
-          style={styles.gradientOverlay}
-        >
-          <Text style={styles.title} numberOfLines={2}>{cleanTitle}</Text>
-        </LinearGradient>
+        {!isList && (
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.9)']}
+            locations={[0, 0.4, 1]}
+            style={styles.gradientOverlay}
+          >
+            <Text style={styles.gridTitle} numberOfLines={2}>{cleanTitle}</Text>
+          </LinearGradient>
+        )}
       </View>
+
+      {isList && (
+        <View style={styles.listTextContainer}>
+          <Text style={styles.listTitle} numberOfLines={2}>{cleanTitle}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={24} color="#555" style={styles.listChevron} />
+        </View>
+      )}
     </Pressable>
   );
 });
@@ -107,7 +119,8 @@ const MovieCard = memo(({ href, title, onPress, width = 120, height = 180 }: Mov
 export default MovieCard;
 
 const styles = StyleSheet.create({
-  container: {
+  // ── Grid Layout Styles ──
+  gridContainer: {
     borderRadius: 10,
     backgroundColor: '#181818',
     overflow: 'hidden',
@@ -119,15 +132,71 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
   },
-  pressed: {
-    transform: [{ scale: 0.95 }],
-    opacity: 0.8,
-  },
-  imageContainer: {
+  gridImageContainer: {
     flex: 1,
     width: '100%',
     height: '100%',
     position: 'relative',
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '65%',
+    justifyContent: 'flex-end',
+    padding: 10,
+  },
+  gridTitle: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    textShadowColor: 'rgba(0, 0, 0, 1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+
+  // ── List Layout Styles ──
+  listContainer: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    backgroundColor: '#181818',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    alignItems: 'center',
+    padding: 8,
+  },
+  listImageContainer: {
+    width: 60,
+    height: 85,
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: '#111',
+  },
+  listTextContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingLeft: 12,
+  },
+  listTitle: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  listChevron: {
+    marginLeft: 8,
+  },
+
+  // ── Shared Styles ──
+  pressed: {
+    transform: [{ scale: 0.95 }],
+    opacity: 0.8,
   },
   image: {
     flex: 1,
@@ -140,22 +209,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gradientOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '65%',
-    justifyContent: 'flex-end',
-    padding: 10,
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-    textShadowColor: 'rgba(0, 0, 0, 1)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  }
 });

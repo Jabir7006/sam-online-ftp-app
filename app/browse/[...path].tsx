@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useNavigation, router } from 'expo-router';
@@ -171,6 +172,9 @@ export default function FolderViewerScreen() {
     );
   }, [loading]);
 
+  const [gridColumns, setGridColumns] = useState<1 | 2 | 3>(3);
+  const screenWidth = Dimensions.get('window').width;
+
   // ── Auto-detect if this is a Movie Grid or a standard Folder/File List ──
   const isMovieGrid = useMemo(() => {
     if (items.length === 0) return false;
@@ -192,13 +196,8 @@ export default function FolderViewerScreen() {
       }
     });
 
-    // If there are more year folders than regular folders, it's a Year List
     if (yearFolderCount > 0 && yearFolderCount >= regularFolderCount) return false;
-    
-    // If it contains mostly files (like videos), it's a File List
     if (fileCount > regularFolderCount) return false;
-
-    // Otherwise, we assume these are Movie Folders!
     return regularFolderCount > 0;
   }, [items]);
 
@@ -239,16 +238,30 @@ export default function FolderViewerScreen() {
           {breadcrumb}
         </Text>
         <Text style={styles.countBadge}>{items.length}</Text>
+        
+        {isMovieGrid && (
+          <View style={styles.gridToggles}>
+             <TouchableOpacity onPress={() => setGridColumns(1)} style={styles.toggleBtn}>
+                <MaterialCommunityIcons name="view-list" size={22} color={gridColumns === 1 ? COLORS.red : COLORS.textSecondary} />
+             </TouchableOpacity>
+             <TouchableOpacity onPress={() => setGridColumns(2)} style={styles.toggleBtn}>
+                <MaterialCommunityIcons name="view-grid-outline" size={22} color={gridColumns === 2 ? COLORS.red : COLORS.textSecondary} />
+             </TouchableOpacity>
+             <TouchableOpacity onPress={() => setGridColumns(3)} style={styles.toggleBtn}>
+                <MaterialCommunityIcons name="view-grid" size={22} color={gridColumns === 3 ? COLORS.red : COLORS.textSecondary} />
+             </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Main list */}
       <FlashList
         // FlashList requires a unique key if numColumns changes, so we force a remount
-        key={isMovieGrid ? 'grid' : 'list'}
+        key={isMovieGrid ? `grid-${gridColumns}` : 'list'}
         data={items}
         keyExtractor={(item) => item.href}
-        numColumns={isMovieGrid ? 3 : 1}
-        estimatedItemSize={isMovieGrid ? 180 : 78}
+        numColumns={isMovieGrid ? gridColumns : 1}
+        estimatedItemSize={isMovieGrid ? (gridColumns === 1 ? 300 : 180) : 78}
         ListEmptyComponent={renderEmpty}
         onRefresh={() => loadData(true)}
         refreshing={refreshing}
@@ -258,15 +271,32 @@ export default function FolderViewerScreen() {
           if (isMovieGrid && item.size === null) {
             const fileName = item.href.split('/').filter(Boolean).pop() || 'Unknown';
             const decodedName = decodeURIComponent(fileName);
-            // Render as Netflix-style poster card
+            
+            // Calculate dynamic sizing based on grid columns
+            let cardWidth: number | string = 110;
+            let cardHeight: number | string = 160;
+            const isList = gridColumns === 1;
+            
+            if (gridColumns === 3) {
+              cardWidth = (screenWidth - 16) / 3 - 8;
+              cardHeight = (cardWidth as number) * 1.5;
+            } else if (gridColumns === 2) {
+              cardWidth = (screenWidth - 16) / 2 - 12;
+              cardHeight = (cardWidth as number) * 1.5;
+            } else if (gridColumns === 1) {
+              cardWidth = '100%';
+              cardHeight = 101; // 85 (image) + 16 (padding)
+            }
+
             return (
-              <View style={styles.gridItemWrapper}>
+              <View style={isList ? styles.listItemWrapper : styles.gridItemWrapper}>
                 <MovieCard 
                   href={item.href}
                   title={decodedName}
                   onPress={(href) => handleItemPress(item)}
-                  width={110}
-                  height={160}
+                  width={cardWidth}
+                  height={cardHeight}
+                  layout={isList ? 'list' : 'grid'}
                 />
               </View>
             );
@@ -328,6 +358,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
+  gridToggles: {
+    flexDirection: 'row',
+    gap: 4,
+    marginLeft: 8,
+  },
+  toggleBtn: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
   // ── List ──
   listContent: {
     paddingTop: 8,
@@ -342,6 +382,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     marginBottom: 16,
+  },
+  listItemWrapper: {
+    width: '100%',
+    paddingHorizontal: 8,
+    marginBottom: 12,
   },
   // ── States ──
   centeredContainer: {
