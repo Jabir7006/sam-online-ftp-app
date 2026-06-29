@@ -1,216 +1,507 @@
-import React, { useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, TouchableOpacity } from "react-native";
-import { Image } from "expo-image";
-import { FlashList } from "@shopify/flash-list";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
+/**
+ * index.tsx — SAM FLIX Home Screen
+ *
+ * Redesigned with:
+ *  - Large hero banner featuring the first category
+ *  - Animated entrance (fade + slide up) for header and cards
+ *  - Featured card (full-width hero) + supporting grid cards
+ *  - Rich gradient overlays, category count badges, accent colors
+ *  - expo-image with disk caching for all images
+ *  - Micro-animations on press (scale + brightness)
+ */
 
-const COLORS = {
-  bg: "#0D0D0D",
-  surface: "#181818",
-  surfaceHover: "#222222",
-  border: "#2A2A2A",
-  red: "#E50914",
-  textPrimary: "#FFFFFF",
-  textSecondary: "#9E9E9E",
+import React, { useCallback, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  TouchableOpacity,
+  Animated,
+  ScrollView,
+  useWindowDimensions,
+} from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+
+// ─── Palette ─────────────────────────────────────────────────────────────────
+const C = {
+  bg: '#080808',
+  surface: '#141414',
+  surfaceHigh: '#1E1E1E',
+  border: '#272727',
+  red: '#E50914',
+  redDim: '#9B0610',
+  gold: '#F5A623',
+  textPrimary: '#FFFFFF',
+  textSecondary: '#A0A0A0',
+  textMuted: '#606060',
 };
 
-// Hardcoded categories. Add `posterUrl` to manually set the poster for each category!
+// ─── Categories ───────────────────────────────────────────────────────────────
 const CATEGORIES = [
   {
-    id: "english",
-    title: "English Movies",
-    href: "/DHAKA-FLIX-7/English%20Movies/",
-    posterUrl:
-      "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop",
+    id: 'english',
+    title: 'English Movies',
+    subtitle: 'Hollywood Blockbusters',
+    href: '/DHAKA-FLIX-7/English%20Movies/',
+    accentColor: '#1A6EFF',
+    icon: 'movie-open' as const,
+    posterUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=800&auto=format&fit=crop',
   },
   {
-    id: "hindi",
-    title: "Hindi Movies",
-    href: "/DHAKA-FLIX-14/Hindi%20Movies/",
-    posterUrl:
-      "https://images.unsplash.com/photo-1570534279782-b7e2cc4a34b4?q=80&w=600&auto=format&fit=crop",
+    id: 'hindi',
+    title: 'Hindi Movies',
+    subtitle: 'Bollywood Hits',
+    href: '/DHAKA-FLIX-14/Hindi%20Movies/',
+    accentColor: '#FF6B35',
+    icon: 'filmstrip' as const,
+    posterUrl: 'https://images.unsplash.com/photo-1570534279782-b7e2cc4a34b4?q=80&w=800&auto=format&fit=crop',
   },
   {
-    id: "bangla",
-    title: "Kolkata Bangla Movies",
-    href: "/DHAKA-FLIX-7/Kolkata%20Bangla%20Movies/",
-    posterUrl:
-      "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=600&auto=format&fit=crop",
+    id: 'bangla',
+    title: 'Kolkata Bangla',
+    subtitle: 'Bengali Cinema',
+    href: '/DHAKA-FLIX-7/Kolkata%20Bangla%20Movies/',
+    accentColor: '#00C9A7',
+    icon: 'theater' as const,
+    posterUrl: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=800&auto=format&fit=crop',
   },
   {
-    id: "foreign",
-    title: "Foreign Language Movies",
-    href: "/DHAKA-FLIX-7/Foreign%20Language%20Movies/",
-    posterUrl: null,
+    id: 'foreign',
+    title: 'Foreign Language',
+    subtitle: 'World Cinema',
+    href: '/DHAKA-FLIX-7/Foreign%20Language%20Movies/',
+    accentColor: '#9B59B6',
+    icon: 'earth' as const,
+    posterUrl: require('../assets/categories/foreign.png'),
   },
   {
-    id: "3d",
-    title: "3D Movies",
-    href: "/DHAKA-FLIX-7/3D%20Movies/",
-    posterUrl: null,
+    id: '3d',
+    title: '3D Movies',
+    subtitle: 'Immersive Experience',
+    href: '/DHAKA-FLIX-7/3D%20Movies/',
+    accentColor: '#00D4FF',
+    icon: 'video-3d' as const,
+    posterUrl: require('../assets/categories/three_d.png'),
   },
   {
-    id: "animation",
-    title: "Animation Movies",
-    href: "/DHAKA-FLIX-14/Animation%20Movies/",
-    posterUrl:
-      "https://images.unsplash.com/photo-1580477667995-15608401ed8a?q=80&w=600&auto=format&fit=crop",
+    id: 'animation',
+    title: 'Animation',
+    subtitle: 'Animated Features',
+    href: '/DHAKA-FLIX-14/Animation%20Movies/',
+    accentColor: '#FFD700',
+    icon: 'palette' as const,
+    posterUrl: 'https://images.unsplash.com/photo-1580477667995-15608401ed8a?q=80&w=800&auto=format&fit=crop',
   },
   {
-    id: "south_indian",
-    title: "South Indian Movies",
-    href: "/DHAKA-FLIX-14/SOUTH%20INDIAN%20MOVIES/",
-    posterUrl: null,
+    id: 'south_indian',
+    title: 'South Indian',
+    subtitle: 'Tollywood & More',
+    href: '/DHAKA-FLIX-14/SOUTH%20INDIAN%20MOVIES/',
+    accentColor: '#FF9F43',
+    icon: 'star-four-points' as const,
+    posterUrl: require('../assets/categories/south_indian.png'),
   },
 ];
 
-export default function HomeScreen() {
-  const insets = useSafeAreaInsets();
+type Category = (typeof CATEGORIES)[0];
 
-  const handlePress = useCallback((href: string) => {
-    let navPath = href.startsWith("/") ? href.slice(1) : href;
-    navPath = navPath.replace(/\/$/, "");
+// ─── Animated Category Card ───────────────────────────────────────────────────
+const CategoryCard = React.memo(
+  ({
+    item,
+    onPress,
+    delay,
+    variant,
+  }: {
+    item: Category;
+    onPress: (href: string) => void;
+    delay: number;
+    variant: 'hero' | 'wide' | 'grid';
+  }) => {
+    const { width } = useWindowDimensions();
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(30)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
 
-    router.push({
-      pathname: `/browse/${navPath}`,
-      params: { rawHref: href },
-    });
-  }, []);
+    useEffect(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 500,
+          delay,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, []);
 
-  const renderItem = useCallback(
-    ({ item }: { item: (typeof CATEGORIES)[0] }) => (
-      <Pressable
-        style={({ pressed }) => [
-          styles.itemContainer,
-          pressed && styles.itemPressed,
-        ]}
-        onPress={() => handlePress(item.href)}
+    const handlePressIn = () =>
+      Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true }).start();
+    const handlePressOut = () =>
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 4 }).start();
+
+    const cardHeight = variant === 'hero' ? 260 : variant === 'wide' ? 150 : 150;
+    const cardWidth = variant === 'hero' ? width - 32 : variant === 'wide' ? width - 32 : (width - 48) / 2;
+
+    return (
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+          width: cardWidth,
+          height: cardHeight,
+          marginBottom: 12,
+        }}
       >
-        {item.posterUrl ? (
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => onPress(item.href)}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+        >
+          {/* Background Image */}
           <Image
-            source={{ uri: item.posterUrl }}
-            style={styles.posterImage}
+            source={item.posterUrl}
+            style={styles.cardImage}
             contentFit="cover"
-            transition={400}
+            transition={600}
             cachePolicy="memory-disk"
           />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <MaterialCommunityIcons
-              name="folder-play-outline"
-              size={32}
-              color={COLORS.textSecondary}
-            />
-          </View>
-        )}
 
-        <View style={styles.gradientOverlay}>
-          <Text style={styles.itemTitle}>{item.title}</Text>
-        </View>
-      </Pressable>
-    ),
-    [handlePress],
-  );
+          {/* Dark vignette gradient */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.88)']}
+            locations={[0, 0.4, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+
+          {/* Accent top-left glow */}
+          <View
+            style={[
+              styles.accentGlow,
+              { backgroundColor: item.accentColor + '40', borderColor: item.accentColor + '60' },
+            ]}
+          >
+            <MaterialCommunityIcons name={item.icon} size={16} color={item.accentColor} />
+          </View>
+
+          {/* Bottom info */}
+          <View style={styles.cardInfo}>
+            <View style={[styles.accentBar, { backgroundColor: item.accentColor }]} />
+            <Text style={variant === 'hero' ? styles.heroTitle : styles.cardTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.cardSubtitle} numberOfLines={1}>
+              {item.subtitle}
+            </Text>
+          </View>
+
+          {/* Play chevron */}
+          <View style={styles.chevronWrap}>
+            <MaterialCommunityIcons name="chevron-right" size={20} color="rgba(255,255,255,0.6)" />
+          </View>
+        </Pressable>
+      </Animated.View>
+    );
+  }
+);
+
+// ─── Home Screen ─────────────────────────────────────────────────────────────
+export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+
+  const headerFade = useRef(new Animated.Value(0)).current;
+  const headerSlide = useRef(new Animated.Value(-20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(headerFade, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(headerSlide, { toValue: 0, duration: 600, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const handlePress = useCallback((href: string) => {
+    let navPath = href.startsWith('/') ? href.slice(1) : href;
+    navPath = navPath.replace(/\/$/, '');
+    router.push({ pathname: `/browse/${navPath}`, params: { rawHref: href } });
+  }, []);
+
+  const [hero, ...rest] = CATEGORIES;
+  // rest split: first item wide, remainder as grid pairs
+  const [wide, ...grid] = rest;
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 16, flexDirection: 'row', alignItems: 'center' }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>
-            SAM<Text style={{ color: COLORS.red }}>FLIX</Text>
-          </Text>
-          <Text style={styles.headerSubtitle}>Select a category to explore</Text>
-        </View>
-        <TouchableOpacity onPress={() => router.push('/search')} style={styles.searchBtn}>
-          <MaterialCommunityIcons name="magnify" size={28} color={COLORS.textPrimary} />
-        </TouchableOpacity>
-      </View>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <Animated.View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + 12 },
+          { opacity: headerFade, transform: [{ translateY: headerSlide }] },
+        ]}
+      >
+        <View style={styles.logoRow}>
+          {/* Logo mark */}
+          <View style={styles.logoMark}>
+            <MaterialCommunityIcons name="play-circle" size={28} color={C.red} />
+          </View>
+          <View style={styles.logoTextWrap}>
+            <Text style={styles.logoText}>
+              SAM<Text style={styles.logoAccent}>FLIX</Text>
+            </Text>
+            <Text style={styles.logoTagline}>Your Local Cinema</Text>
+          </View>
 
-      <FlashList
-        data={CATEGORIES}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        numColumns={2}
-        contentContainerStyle={styles.listContent}
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/search')}
+              style={styles.iconBtn}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="magnify" size={24} color={C.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Section label */}
+        <View style={styles.sectionLabel}>
+          <View style={styles.sectionDot} />
+          <Text style={styles.sectionLabelText}>Browse Categories</Text>
+        </View>
+      </Animated.View>
+
+      {/* ── Content ────────────────────────────────────────────────────── */}
+      <ScrollView
         showsVerticalScrollIndicator={false}
-      />
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]}
+      >
+        {/* Hero Card */}
+        <CategoryCard item={hero} onPress={handlePress} delay={100} variant="hero" />
+
+        {/* Wide Secondary Card */}
+        <CategoryCard item={wide} onPress={handlePress} delay={180} variant="wide" />
+
+        {/* Grid rows */}
+        {grid.reduce<Category[][]>((rows, item, i) => {
+          if (i % 2 === 0) rows.push([item]);
+          else rows[rows.length - 1].push(item);
+          return rows;
+        }, []).map((row, rowIdx) => (
+          <View key={rowIdx} style={styles.gridRow}>
+            {row.map((item, colIdx) => (
+              <CategoryCard
+                key={item.id}
+                item={item}
+                onPress={handlePress}
+                delay={260 + rowIdx * 80 + colIdx * 40}
+                variant="grid"
+              />
+            ))}
+          </View>
+        ))}
+
+        {/* Footer tag */}
+        <View style={styles.footer}>
+          <View style={styles.footerDivider} />
+          <Text style={styles.footerText}>SAM<Text style={{ color: C.red }}>FLIX</Text> · Local Network</Text>
+          <View style={styles.footerDivider} />
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
   },
+
+  // ── Header ──────────────────────────────────────────────────────────────
   header: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: COLORS.bg,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: C.bg,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: COLORS.textPrimary,
-    letterSpacing: 1,
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  searchBtn: {
-    padding: 8,
-    backgroundColor: COLORS.surfaceHover,
-    borderRadius: 20,
-  },
-  listContent: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 24,
-  },
-  itemContainer: {
-    flex: 1,
-    height: 160,
-    marginHorizontal: 6,
-    marginVertical: 8,
+  logoMark: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    backgroundColor: COLORS.surface,
-    overflow: "hidden",
+    backgroundColor: 'rgba(229,9,20,0.15)',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(229,9,20,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
-  itemPressed: {
-    transform: [{ scale: 0.96 }],
-    opacity: 0.9,
-  },
-  posterImage: {
-    width: "100%",
-    height: "100%",
-    position: "absolute",
-  },
-  placeholderImage: {
-    width: "100%",
-    height: "100%",
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.surfaceHover,
-  },
-  gradientOverlay: {
+  logoTextWrap: {
     flex: 1,
-    justifyContent: "flex-end",
-    padding: 12,
-    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.textPrimary,
-    textShadowColor: "rgba(0,0,0,0.8)",
+  logoText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: C.textPrimary,
+    letterSpacing: 2,
+  },
+  logoAccent: {
+    color: C.red,
+  },
+  logoTagline: {
+    fontSize: 11,
+    color: C.textMuted,
+    letterSpacing: 0.5,
+    marginTop: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: C.surfaceHigh,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  sectionDot: {
+    width: 4,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: C.red,
+  },
+  sectionLabelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.textSecondary,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+
+  // ── Scroll ───────────────────────────────────────────────────────────────
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+
+  // ── Card ─────────────────────────────────────────────────────────────────
+  cardImage: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 14,
+  },
+  accentGlow: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardInfo: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 8,
+  },
+  accentBar: {
+    width: 28,
+    height: 3,
+    borderRadius: 2,
+    marginBottom: 6,
+  },
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: C.textPrimary,
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: C.textPrimary,
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(0,0,0,0.9)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+  },
+  cardSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.65)',
+    marginTop: 2,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  chevronWrap: {
+    position: 'absolute',
+    bottom: 14,
+    right: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Grid ─────────────────────────────────────────────────────────────────
+  gridRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  // ── Footer ────────────────────────────────────────────────────────────────
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+  },
+  footerDivider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: C.border,
+  },
+  footerText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.textMuted,
+    letterSpacing: 0.8,
   },
 });
