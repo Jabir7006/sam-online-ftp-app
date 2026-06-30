@@ -76,25 +76,41 @@ export default function FolderViewerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
+  // Ref to access current items inside the stable onViewableItemsChanged callback
+  const itemsRef = useRef<H5aiItem[]>([]);
+
   // Visibility tracking — drives isVisible prop on MovieCard.
-  // The posterStore handles deduplication; we just track which hrefs are
-  // currently on-screen so cards know when to trigger a fetch.
   const [visibleHrefs, setVisibleHrefs] = useState<Set<string>>(new Set());
   const pendingVisible = useRef<string[]>([]);
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: Array<{ item: H5aiItem }> }) => {
-      // Collect newly visible hrefs
+    ({ viewableItems }: { viewableItems: Array<{ item: H5aiItem; index?: number | null }> }) => {
+      if (viewableItems.length === 0) return;
+
+      // Collect newly visible folder hrefs
       viewableItems.forEach(({ item }) => {
-        if (item.size === null) { // folders only
+        if (item.size === null) {
           pendingVisible.current.push(item.href);
-          // Eagerly start fetching — don't wait for the batched setState
-          ensurePosterFetched(item.href);
+          ensurePosterFetched(item.href); // start immediately, don't wait for setState
         }
       });
 
-      // Batch state updates to avoid re-rendering on every scroll frame
+      // ── Scroll-ahead prefetch ────────────────────────────────────────────
+      // Find the highest visible index, then prefetch the next 12 items.
+      // By the time the user scrolls there, the requests are done.
+      const maxIndex = viewableItems.reduce((max, { index }) =>
+        index != null ? Math.max(max, index) : max, -1
+      );
+      if (maxIndex >= 0) {
+        const all = itemsRef.current;
+        for (let i = maxIndex + 1; i <= Math.min(maxIndex + 12, all.length - 1); i++) {
+          const ahead = all[i];
+          if (ahead && ahead.size === null) ensurePosterFetched(ahead.href);
+        }
+      }
+
+      // Batch state updates (150ms) to avoid re-rendering on every scroll frame
       if (flushTimer.current) return;
       flushTimer.current = setTimeout(() => {
         flushTimer.current = null;
@@ -134,15 +150,24 @@ export default function FolderViewerScreen() {
 
         const data = await fetchDirectory(currentPath, signal, isRefresh);
         if (signal?.aborted) return;
-        setItems(data);
 
-        // Pre-warm the synchronous memory cache from AsyncStorage for all
-        // folder-type items. Cards that were previously seen will render
-        // their poster instantly with zero shimmer on first paint.
-        const folderHrefs = data
-          .filter((i) => i.size === null)
-          .map((i) => i.href);
-        prewarmCache(folderHrefs); // fire-and-forget
+        // ── Prewarm BEFORE rendering ────────────────────────────────────────
+        // Populate the synchronous memoryCache from AsyncStorage FIRST.
+        // Cards will be rendered AFTER this resolves, so useLayoutEffect
+        // in MovieCard finds the cached value instantly — zero blink.
+        const folderItems = data.filter((i) => i.size === null);
+        const folderHrefs = folderItems.map((i) => i.href);
+        await prewarmCache(folderHrefs);
+        if (signal?.aborted) return;
+
+        setItems(data);
+        itemsRef.current = data; // keep ref in sync for prefetch-ahead lookup
+
+        // ── Prefetch-ahead: start network fetches for first 24 folders ──────
+        // Posters that aren't in AsyncStorage yet need a network round-trip.
+        // Kick those off NOW (before the user even scrolls) so by the time
+        // the list renders the requests are already in flight or done.
+        folderHrefs.slice(0, 24).forEach((href) => ensurePosterFetched(href));
       } catch (err: any) {
         if (err.name === 'AbortError') return; // Ignore aborted requests entirely
         const msg = err instanceof Error ? err.message : 'Unknown error occurred';

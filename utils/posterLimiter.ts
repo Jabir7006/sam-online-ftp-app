@@ -51,4 +51,4 @@ class ConcurrencyLimiter {
  * Singleton limiter — max 5 concurrent poster-fetch requests at a time.
  * Tweak the number if needed, but 5 is a sweet spot for most local LAN servers.
  */
-export const posterLimiter = new ConcurrencyLimiter(5);
+export const posterLimiter = new ConcurrencyLimiter(12);
