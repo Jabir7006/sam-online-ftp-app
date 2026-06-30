@@ -1,29 +1,28 @@
 /**
  * MovieCard.tsx
  *
- * Optimizations applied:
- *  1. Visibility-based lazy loading — poster is only fetched when the card
- *     scrolls into view (`isVisible` prop). Off-screen cards do nothing.
- *  2. Concurrency limiter — at most 5 poster requests run simultaneously
- *     (via posterLimiter), preventing server floods on large folders.
- *  3. Persistent disk cache — resolved poster URLs are stored in AsyncStorage
- *     with a 7-day TTL. Negative results (no poster found) are also cached
- *     so we never re-probe the same folder.
- *  4. Stagger delay — each card waits `index * 40 ms` before starting its
- *     fetch, smoothing out the initial burst.
- *  5. Shimmer skeleton — replaces the per-card ActivityIndicator with a
- *     smooth pulsing placeholder for a far better loading UX.
+ * ARCHITECTURE:
+ *   All poster loading is delegated to `posterStore` — a module-level
+ *   synchronous cache. This eliminates every class of recycling artifact:
+ *
+ *   ✅ No blink on recycle  — sync cache lookup gives instant result, no setState(undefined)
+ *   ✅ No stale poster      — state initialised from cache on every render of a new href
+ *   ✅ No duplicate fetches — posterStore deduplicates concurrent requests for same href
+ *   ✅ No cancelled fetches — fetches are global, not tied to component lifetime
+ *   ✅ No shimmer for cached items — seen-before items display instantly
  */
 
-import React, { useEffect, useRef, useState, memo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState, memo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { fetchDirectory, getBaseUrlForPath } from '../api';
-import { posterLimiter } from '../utils/posterLimiter';
-import { getCachedPosterUrl, cachePosterUrl } from '../utils/posterCache';
+import {
+  getPosterSync,
+  subscribePoster,
+  ensurePosterFetched,
+} from '../utils/posterStore';
 import ShimmerPlaceholder from './ShimmerPlaceholder';
 
 interface MovieCardProps {
@@ -33,9 +32,9 @@ interface MovieCardProps {
   width?: number | string;
   height?: number | string;
   layout?: 'grid' | 'list';
-  /** Whether this card is currently in the visible viewport */
+  /** Set to true when the card enters the visible viewport. */
   isVisible?: boolean;
-  /** Card index in the list — used for stagger delay */
+  /** Kept for API compatibility — no longer used for stagger delay. */
   index?: number;
 }
 
@@ -48,101 +47,76 @@ const MovieCard = memo(
     height = 180,
     layout = 'grid',
     isVisible = false,
-    index = 0,
   }: MovieCardProps) => {
-    /**
-     * posterUrl state:
-     *  - undefined  → not yet resolved (show shimmer)
-     *  - string     → valid URL (show image)
-     *  - null       → confirmed no poster (show fallback icon)
-     */
-    const [posterUrl, setPosterUrl] = useState<string | null | undefined>(undefined);
-    const hasFetched = useRef(false);
+    // ── Poster state ─────────────────────────────────────────────────────────
+    //
+    // Initialised synchronously from the module-level cache.
+    // If this href was seen before (even if the component is being recycled),
+    // the correct URL is available INSTANTLY — no async, no blink.
+    //
+    // State values:
+    //   undefined → not yet known (show shimmer)
+    //   string    → valid image URL
+    //   null      → confirmed no poster (show fallback icon)
+    const [posterUrl, setPosterUrl] = useState<string | null | undefined>(
+      () => getPosterSync(href)
+    );
 
-    // Clean up the title (remove year suffix, resolution tags, trailing dashes)
+    // Track which href this component is currently rendering.
+    // Used to guard stale subscriber callbacks after recycling.
+    const activeHref = useRef(href);
+
+    // ── Sync state update on recycle ─────────────────────────────────────────
+    //
+    // useLayoutEffect fires synchronously BEFORE the browser paints.
+    // When FlashList recycles this component with a new href, we immediately
+    // read the new href's cached value — so the user sees either the correct
+    // poster OR the shimmer in the very first frame. No old-poster flash.
+    useLayoutEffect(() => {
+      activeHref.current = href;
+      // Read synchronously — no async, guaranteed zero-frame delay
+      const cached = getPosterSync(href);
+      setPosterUrl(cached); // undefined if unknown, string/null if known
+    }, [href]);
+
+    // ── Subscribe to store updates + trigger fetch when visible ──────────────
+    useEffect(() => {
+      const currentHref = href;
+
+      // Subscribe to be notified when this href's poster resolves
+      const unsubscribe = subscribePoster(currentHref, () => {
+        // Guard: ignore if component was recycled to a different href
+        if (activeHref.current !== currentHref) return;
+        const url = getPosterSync(currentHref);
+        if (url !== undefined) setPosterUrl(url);
+      });
+
+      // If already in store, make sure our state is up to date
+      const inStore = getPosterSync(currentHref);
+      if (inStore !== undefined) {
+        setPosterUrl(inStore);
+      }
+
+      return unsubscribe;
+    }, [href]);
+
+    // ── Trigger fetch when card becomes visible ───────────────────────────────
+    useEffect(() => {
+      if (!isVisible) return;
+      // ensurePosterFetched is a no-op if already cached or already fetching
+      ensurePosterFetched(href);
+    }, [isVisible, href]);
+
+    // ── Derived display state ─────────────────────────────────────────────────
+    const isLoading = posterUrl === undefined;
+    const hasImage = typeof posterUrl === 'string';
+    const isList = layout === 'list';
+
     const cleanTitle = title
       .replace(/\s*\(\d{4}\).*$/, '')
       .replace(/\s*\d{3,4}p.*$/, '')
       .replace(/-\s*$/, '')
       .trim();
-
-    const isList = layout === 'list';
-
-    useEffect(() => {
-      // Only start loading once the card is visible AND we haven't fetched yet
-      if (!isVisible || hasFetched.current) return;
-      hasFetched.current = true;
-
-      const controller = new AbortController();
-      let isMounted = true;
-
-      const loadPoster = async () => {
-        // ── Fix 3: Check persistent cache first ──────────────────────────────
-        const cached = await getCachedPosterUrl(href);
-        if (!isMounted || controller.signal.aborted) return;
-
-        if (cached !== undefined) {
-          // Cache hit (string URL or null negative-cache)
-          setPosterUrl(cached);
-          return;
-        }
-
-        // ── Fix 4: Stagger delay ─────────────────────────────────────────────
-        const staggerMs = Math.min(index * 40, 1200); // cap at 1.2 s
-        if (staggerMs > 0) {
-          await new Promise<void>((resolve) => {
-            const t = setTimeout(resolve, staggerMs);
-            controller.signal.addEventListener('abort', () => clearTimeout(t));
-          });
-        }
-        if (!isMounted || controller.signal.aborted) return;
-
-        // ── Fix 2: Rate-limited fetch ────────────────────────────────────────
-        try {
-          const items = await posterLimiter.run(() =>
-            fetchDirectory(href, controller.signal)
-          );
-
-          if (!isMounted || controller.signal.aborted) return;
-
-          const imageFile = items.find(
-            (i) =>
-              i.size !== null &&
-              (i.href.toLowerCase().endsWith('.jpg') ||
-                i.href.toLowerCase().endsWith('.jpeg') ||
-                i.href.toLowerCase().endsWith('.png'))
-          );
-
-          const resolvedUrl = imageFile
-            ? `${getBaseUrlForPath(imageFile.href)}${imageFile.href}`
-            : null;
-
-          setPosterUrl(resolvedUrl);
-
-          // ── Fix 3: Persist result to disk (including null = no poster) ────
-          cachePosterUrl(href, resolvedUrl);
-        } catch (err: any) {
-          if (!controller.signal.aborted) {
-            console.warn(`[MovieCard] Failed to load poster for "${title}":`, err?.message);
-            setPosterUrl(null);
-            // Cache the failure so we don't retry on next render
-            cachePosterUrl(href, null);
-          }
-        }
-      };
-
-      loadPoster();
-
-      return () => {
-        isMounted = false;
-        controller.abort();
-      };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isVisible, href]);
-
-    // ── Derived display state ────────────────────────────────────────────────
-    const isLoading = posterUrl === undefined; // still unknown
-    const hasImage = typeof posterUrl === 'string';
 
     return (
       <Pressable
@@ -153,10 +127,8 @@ const MovieCard = memo(
         ]}
         onPress={() => onPress(href, cleanTitle)}
       >
-        {/* Image / Skeleton / Fallback */}
         <View style={isList ? styles.listImageContainer : styles.gridImageContainer}>
           {isLoading ? (
-            // ── Fix 5: Shimmer skeleton ──────────────────────────────────────
             <ShimmerPlaceholder
               width="100%"
               height="100%"
@@ -167,8 +139,8 @@ const MovieCard = memo(
               source={posterUrl!}
               style={styles.image}
               contentFit="cover"
-              transition={300}
-              cachePolicy="disk"
+              transition={250}
+              cachePolicy="memory-disk"
             />
           ) : (
             <View style={styles.placeholder}>
@@ -176,11 +148,11 @@ const MovieCard = memo(
             </View>
           )}
 
-          {/* Gradient title overlay (grid mode only, shown when image loaded) */}
+          {/* Gradient title overlay — grid mode, image loaded */}
           {!isList && hasImage && (
             <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.9)']}
-              locations={[0, 0.4, 1]}
+              colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.88)']}
+              locations={[0, 0.45, 1]}
               style={styles.gradientOverlay}
             >
               <Text style={styles.gridTitle} numberOfLines={2}>
@@ -189,7 +161,7 @@ const MovieCard = memo(
             </LinearGradient>
           )}
 
-          {/* Show title over shimmer / fallback in grid mode too */}
+          {/* Fallback title — grid mode, no image */}
           {!isList && !hasImage && !isLoading && (
             <View style={styles.gradientOverlay}>
               <Text style={styles.gridTitleDark} numberOfLines={2}>
@@ -199,13 +171,17 @@ const MovieCard = memo(
           )}
         </View>
 
-        {/* List-mode text row */}
         {isList && (
           <View style={styles.listTextContainer}>
             <Text style={styles.listTitle} numberOfLines={2}>
               {cleanTitle}
             </Text>
-            <MaterialCommunityIcons name="chevron-right" size={24} color="#555" style={styles.listChevron} />
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={24}
+              color="#555"
+              style={styles.listChevron}
+            />
           </View>
         )}
       </Pressable>
@@ -213,21 +189,17 @@ const MovieCard = memo(
   }
 );
 
+MovieCard.displayName = 'MovieCard';
 export default MovieCard;
 
 const styles = StyleSheet.create({
-  // ── Grid Layout ──────────────────────────────────────────────────────────
   gridContainer: {
     borderRadius: 10,
     backgroundColor: '#181818',
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#2A2A2A',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
+    elevation: 4,
   },
   gridImageContainer: {
     flex: 1,
@@ -259,8 +231,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 17,
   },
-
-  // ── List Layout ──────────────────────────────────────────────────────────
   listContainer: {
     flexDirection: 'row',
     borderRadius: 10,
@@ -295,8 +265,6 @@ const styles = StyleSheet.create({
   listChevron: {
     marginLeft: 8,
   },
-
-  // ── Shared ───────────────────────────────────────────────────────────────
   pressed: {
     transform: [{ scale: 0.95 }],
     opacity: 0.8,

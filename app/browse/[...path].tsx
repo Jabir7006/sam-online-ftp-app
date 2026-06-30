@@ -18,6 +18,7 @@ import { fetchDirectory } from '../../api';
 import type { H5aiItem } from '../../types';
 import FileItem from '../../components/FileItem';
 import MovieCard from '../../components/MovieCard';
+import { prewarmCache, ensurePosterFetched } from '../../utils/posterStore';
 
 // ─────────────────────────────────────────────
 // Colour palette
@@ -75,18 +76,39 @@ export default function FolderViewerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  // ── Fix 1: Visibility tracking for lazy poster loading ──
+  // Visibility tracking — drives isVisible prop on MovieCard.
+  // The posterStore handles deduplication; we just track which hrefs are
+  // currently on-screen so cards know when to trigger a fetch.
   const [visibleHrefs, setVisibleHrefs] = useState<Set<string>>(new Set());
+  const pendingVisible = useRef<string[]>([]);
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: Array<{ item: H5aiItem }> }) => {
-      setVisibleHrefs((prev) => {
-        const next = new Set(prev);
-        viewableItems.forEach(({ item }) => next.add(item.href));
-        return next;
+      // Collect newly visible hrefs
+      viewableItems.forEach(({ item }) => {
+        if (item.size === null) { // folders only
+          pendingVisible.current.push(item.href);
+          // Eagerly start fetching — don't wait for the batched setState
+          ensurePosterFetched(item.href);
+        }
       });
+
+      // Batch state updates to avoid re-rendering on every scroll frame
+      if (flushTimer.current) return;
+      flushTimer.current = setTimeout(() => {
+        flushTimer.current = null;
+        const hrefs = pendingVisible.current.splice(0);
+        if (hrefs.length === 0) return;
+        setVisibleHrefs((prev) => {
+          const next = new Set(prev);
+          hrefs.forEach((h) => next.add(h));
+          return next;
+        });
+      }, 150);
     }
   ).current;
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 20 }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 10 }).current;
 
   // Update the stack header title to the folder name
   useEffect(() => {
@@ -111,8 +133,16 @@ export default function FolderViewerScreen() {
         setError(null);
 
         const data = await fetchDirectory(currentPath, signal, isRefresh);
-        if (signal?.aborted) return; // Prevent setting state if aborted during parsing
+        if (signal?.aborted) return;
         setItems(data);
+
+        // Pre-warm the synchronous memory cache from AsyncStorage for all
+        // folder-type items. Cards that were previously seen will render
+        // their poster instantly with zero shimmer on first paint.
+        const folderHrefs = data
+          .filter((i) => i.size === null)
+          .map((i) => i.href);
+        prewarmCache(folderHrefs); // fire-and-forget
       } catch (err: any) {
         if (err.name === 'AbortError') return; // Ignore aborted requests entirely
         const msg = err instanceof Error ? err.message : 'Unknown error occurred';
