@@ -29,7 +29,22 @@
       "expo-router",
       "expo-screen-orientation",
       "expo-video",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "position": "absolute",
+          "backgroundColor": "#0D0D0D"
+        }
+      ]
     ],
     "experiments": {},
     "extra": {
