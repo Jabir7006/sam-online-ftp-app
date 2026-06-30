@@ -110,6 +110,39 @@ const CATEGORIES = [
 
 type Category = (typeof CATEGORIES)[0];
 
+// ─── TV Series ────────────────────────────────────────────────────────────────
+const TV_SERIES = [
+  {
+    id: 'tv_web',
+    title: 'TV & WEB Series',
+    subtitle: 'Binge-worthy Shows',
+    href: '/DHAKA-FLIX-12/TV-WEB-Series/',
+    accentColor: '#6C63FF',
+    icon: 'television-play' as const,
+    posterUrl: require('../assets/categories/tv_web.png'),
+  },
+  {
+    id: 'korean',
+    title: 'Korean TV & WEB',
+    subtitle: 'K-Drama & K-Pop',
+    href: '/DHAKA-FLIX-14/KOREAN%20TV%20%26%20WEB%20Series/',
+    accentColor: '#FF6B9D',
+    icon: 'heart-pulse' as const,
+    posterUrl: require('../assets/categories/korean.png'),
+  },
+  {
+    id: 'cartoon',
+    title: 'Cartoon TV Series',
+    subtitle: 'Animated Adventures',
+    href: '/DHAKA-FLIX-7/Cartoon%20TV%20Series/',
+    accentColor: '#FFD700',
+    icon: 'emoticon-happy' as const,
+    posterUrl: require('../assets/categories/cartoon.png'),
+  },
+];
+
+type TvSeries = (typeof TV_SERIES)[0];
+
 // ─── Animated Category Card ───────────────────────────────────────────────────
 const CategoryCard = React.memo(
   ({
@@ -216,6 +249,109 @@ const CategoryCard = React.memo(
   }
 );
 
+// ─── TvCard — same as CategoryCard but accepts TvSeries type ───────────────────────────
+const TvCard = React.memo(
+  ({
+    item,
+    onPress,
+    delay,
+    variant,
+  }: {
+    item: TvSeries;
+    onPress: (href: string) => void;
+    delay: number;
+    variant: 'hero' | 'grid';
+  }) => {
+    const { width } = useWindowDimensions();
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(24)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 480, delay, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 480, delay, useNativeDriver: true }),
+      ]).start();
+    }, []);
+
+    const handlePressIn = () =>
+      Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true }).start();
+    const handlePressOut = () =>
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 4 }).start();
+
+    const cardHeight = variant === 'hero' ? 200 : 148;
+    const cardWidth = variant === 'hero' ? width - 32 : (width - 48) / 2;
+
+    return (
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+          width: cardWidth,
+          height: cardHeight,
+          marginBottom: 12,
+          borderRadius: 14,
+          overflow: 'hidden',
+        }}
+      >
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => onPress(item.href)}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+        >
+          <Image
+            source={item.posterUrl}
+            style={styles.cardImage}
+            contentFit="cover"
+            transition={600}
+            cachePolicy="memory-disk"
+          />
+
+          {/* Purple-toned vignette for TV section */}
+          <LinearGradient
+            colors={[
+              'rgba(0,0,0,0.0)',
+              `${item.accentColor}18`,
+              'rgba(0,0,0,0.85)',
+            ]}
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+
+          {/* Icon badge */}
+          <View
+            style={[
+              styles.accentGlow,
+              { backgroundColor: item.accentColor + '35', borderColor: item.accentColor + '55' },
+            ]}
+          >
+            <MaterialCommunityIcons name={item.icon} size={15} color={item.accentColor} />
+          </View>
+
+          {/* Bottom info */}
+          <View style={styles.cardInfo}>
+            <View style={[styles.accentBar, { backgroundColor: item.accentColor }]} />
+            <Text
+              style={variant === 'hero' ? styles.heroTitle : styles.cardTitle}
+              numberOfLines={1}
+            >
+              {item.title}
+            </Text>
+            <Text style={styles.cardSubtitle} numberOfLines={1}>
+              {item.subtitle}
+            </Text>
+          </View>
+
+          <View style={styles.chevronWrap}>
+            <MaterialCommunityIcons name="play" size={16} color="rgba(255,255,255,0.75)" />
+          </View>
+        </Pressable>
+      </Animated.View>
+    );
+  }
+);
+
 // ─── Home Screen ─────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -310,6 +446,33 @@ export default function HomeScreen() {
             ))}
           </View>
         ))}
+
+        {/* ── TV Series Section ──────────────────────────────────────── */}
+        <View style={styles.tvSection}>
+          {/* Section header */}
+          <View style={styles.tvSectionHeader}>
+            <View style={styles.tvIconWrap}>
+              <MaterialCommunityIcons name="television-classic" size={18} color="#6C63FF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tvSectionTitle}>TV Series</Text>
+              <Text style={styles.tvSectionSub}>Streaming & Web Originals</Text>
+            </View>
+            <View style={styles.tvLiveBadge}>
+              <View style={styles.tvLiveDot} />
+              <Text style={styles.tvLiveText}>3 Genres</Text>
+            </View>
+          </View>
+
+          {/* Hero TV card (full width) */}
+          <TvCard item={TV_SERIES[0]} onPress={handlePress} delay={0} variant="hero" />
+
+          {/* Side-by-side pair */}
+          <View style={styles.gridRow}>
+            <TvCard item={TV_SERIES[1]} onPress={handlePress} delay={60} variant="grid" />
+            <TvCard item={TV_SERIES[2]} onPress={handlePress} delay={120} variant="grid" />
+          </View>
+        </View>
 
         {/* Footer tag */}
         <View style={styles.footer}>
@@ -487,11 +650,73 @@ const styles = StyleSheet.create({
   },
 
   // ── Footer ────────────────────────────────────────────────────────────────
+  // ── TV Series Section ──────────────────────────────────────────────────────
+  tvSection: {
+    marginTop: 8,
+    marginBottom: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(108,99,255,0.2)',
+    paddingTop: 20,
+  },
+  tvSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+    paddingHorizontal: 2,
+  },
+  tvIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(108,99,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(108,99,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tvSectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: C.textPrimary,
+    letterSpacing: 0.3,
+  },
+  tvSectionSub: {
+    fontSize: 11,
+    color: C.textMuted,
+    marginTop: 1,
+    letterSpacing: 0.3,
+  },
+  tvLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(108,99,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(108,99,255,0.3)',
+  },
+  tvLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#6C63FF',
+  },
+  tvLiveText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6C63FF',
+    letterSpacing: 0.5,
+  },
+
+  // ── Footer ────────────────────────────────────────────────────────────────
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 8,
+    marginTop: 12,
   },
   footerDivider: {
     flex: 1,
@@ -505,3 +730,5 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
 });
+
+
