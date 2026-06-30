@@ -18,7 +18,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.jabir7005.samonlineapp"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -30,6 +31,12 @@
       "expo-video",
       "expo-image"
     ],
-    "experiments": {}
+    "experiments": {},
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "504f2606-670c-4d11-9427-174ec3f56892"
+      }
+    }
   }
 }

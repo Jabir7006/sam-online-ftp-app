@@ -77,7 +77,7 @@ const CATEGORIES = [
     href: '/DHAKA-FLIX-7/Foreign%20Language%20Movies/',
     accentColor: '#9B59B6',
     icon: 'earth' as const,
-    posterUrl: require('../assets/categories/foreign.png'),
+    posterUrl: require('../assets/categories/foreign.jpg'),
   },
   {
     id: '3d',
@@ -86,7 +86,7 @@ const CATEGORIES = [
     href: '/DHAKA-FLIX-7/3D%20Movies/',
     accentColor: '#00D4FF',
     icon: 'video-3d' as const,
-    posterUrl: require('../assets/categories/three_d.png'),
+    posterUrl: require('../assets/categories/three_d.jpg'),
   },
   {
     id: 'animation',
@@ -104,7 +104,7 @@ const CATEGORIES = [
     href: '/DHAKA-FLIX-14/SOUTH%20INDIAN%20MOVIES/',
     accentColor: '#FF9F43',
     icon: 'star-four-points' as const,
-    posterUrl: require('../assets/categories/south_indian.png'),
+    posterUrl: require('../assets/categories/south_indian.jpg'),
   },
 ];
 
@@ -119,7 +119,7 @@ const TV_SERIES = [
     href: '/DHAKA-FLIX-12/TV-WEB-Series/',
     accentColor: '#6C63FF',
     icon: 'television-play' as const,
-    posterUrl: require('../assets/categories/tv_web.png'),
+    posterUrl: require('../assets/categories/tv_web.jpg'),
   },
   {
     id: 'korean',
@@ -128,7 +128,7 @@ const TV_SERIES = [
     href: '/DHAKA-FLIX-14/KOREAN%20TV%20%26%20WEB%20Series/',
     accentColor: '#FF6B9D',
     icon: 'heart-pulse' as const,
-    posterUrl: require('../assets/categories/korean.png'),
+    posterUrl: require('../assets/categories/korean.jpg'),
   },
   {
     id: 'cartoon',
@@ -137,7 +137,7 @@ const TV_SERIES = [
     href: '/DHAKA-FLIX-7/Cartoon%20TV%20Series/',
     accentColor: '#FFD700',
     icon: 'emoticon-happy' as const,
-    posterUrl: require('../assets/categories/cartoon.png'),
+    posterUrl: require('../assets/categories/cartoon.jpg'),
   },
 ];
 
